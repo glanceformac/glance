@@ -1,0 +1,10 @@
+build/
+.build/
+.DS_Store
+chrome-extension/key.pem
+.keys/
+dist/
+# Internal notes that must never be published
+HANDOFF-*.md
+docs/PRELAUNCH-TEST-REPORT.md
+.private/

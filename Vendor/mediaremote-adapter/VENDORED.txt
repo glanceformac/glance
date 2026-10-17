@@ -1,0 +1,1 @@
+Vendored from https://github.com/ungive/mediaremote-adapter at commit 797729d9b16316dc313844476c153d7a107ca0df (BSD 3-Clause). Unmodified.

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Glance</string>
+	<key>CFBundleDisplayName</key><string>Glance</string>
+	<key>CFBundleIdentifier</key><string>app.glanceformac.glance</string>
+	<key>CFBundleExecutable</key><string>Glance</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleIconFile</key><string>Glance</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>LSUIElement</key><true/>
+	<key>CFBundleURLTypes</key>
+	<array><dict>
+		<key>CFBundleURLName</key><string>app.glanceformac.glance</string>
+		<key>CFBundleURLSchemes</key><array><string>glance</string></array>
+	</dict></array>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>Glance shows your next calendar event in the expanded island.</string>
+	<key>NSCalendarsUsageDescription</key><string>Glance shows your next calendar event in the expanded island.</string>
+	<key>NSRemindersFullAccessUsageDescription</key><string>Glance's Tools tab shows your reminders and lets you add and tick them. Only when you open Reminders there.</string>
+	<key>NSRemindersUsageDescription</key><string>Glance's Tools tab shows your reminders and lets you add and tick them. Only when you open Reminders there.</string>
+	<key>NSLocationUsageDescription</key><string>Glance uses your approximate location to show local weather.</string>
+	<key>NSLocationWhenInUseUsageDescription</key><string>Glance uses your approximate location to show local weather.</string>
+	<key>NSMicrophoneUsageDescription</key><string>Glance's Prompter can follow your voice (only when you turn on Voice follow). Audio is processed on this Mac and never recorded or sent.</string>
+	<key>NSSpeechRecognitionUsageDescription</key><string>Glance's Prompter can follow the words you say to keep your place in the script. Recognition runs on this Mac only.</string>
+	<key>NSCameraUsageDescription</key><string>Glance shows a mirror preview so you can check how you look. Nothing is recorded.</string>
+	<key>NSAppleEventsUsageDescription</key><string>Glance switches macOS between Light and Dark appearance when you press the theme button, and controls Spotify or Music if system media control is unavailable.</string>
+</dict>
+</plist>

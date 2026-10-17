@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { font: 13px -apple-system, system-ui, sans-serif; width: 250px; margin: 12px; color: #222; }
+  h1 { font-size: 14px; margin: 0 0 8px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  .muted { color: #777; font-size: 11px; line-height: 1.35; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; background: #bbb; }
+  .on { background: #34c759; }
+</style></head><body>
+  <h1>Glance for Mac</h1>
+  <div class="row"><label for="en">Send video colours to Glance</label><input id="en" type="checkbox"></div>
+  <div class="row"><span><span id="dot" class="dot"></span><span id="island">Glance: …</span></span></div>
+  <div class="row"><span id="status">Status: …</span></div>
+  <p class="muted">Only colours, sound levels, play state, the site's domain, and the video title and progress go to the Glance app on this Mac. No images, URLs or page content are sent or stored. Glance can also play/pause, skip 10 s, start picture-in-picture or full screen on that video when you use its pill controls. If a page doesn't allow reading its video, a small snapshot of just the video area is taken about twice a second and discarded immediately.</p>
+  <script src="popup.js"></script>
+</body></html>

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Glance for Mac (Cinema mode)",
+  "version": "1.0",
+  "description": "Sends the colours, sound levels, title and progress of the video you are watching only to Glance on this Mac (its Ambilight glow and pill). No images, URLs or page content are sent anywhere.",
+  "permissions": ["nativeMessaging", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "all_frames": true,
+    "match_about_blank": true,
+    "run_at": "document_idle"
+  }],
+  "action": { "default_popup": "popup.html", "default_title": "Glance for Mac (Cinema mode)", "default_icon": { "16": "icon16.png", "32": "icon32.png", "128": "icon128.png" } },
+  "icons": { "16": "icon16.png", "32": "icon32.png", "128": "icon128.png" }
+}
