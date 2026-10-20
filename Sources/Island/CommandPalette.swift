@@ -170,6 +170,8 @@ enum BuiltinCommands {
                 AppSettings.shared.prefs.islandHidden.toggle()
             }]
         }
+        r.register(PaletteCommand(id: "app.updates", title: "Check for Updates…", symbol: "arrow.down.circle", keywords: ["update", "upgrade", "version", "sparkle"],
+                                  group: "Glance", priority: 30) { Updater.shared.checkForUpdates() })
         r.register(PaletteCommand(id: "app.quit", title: "Quit Glance", symbol: "power", keywords: ["exit", "close"], group: "Glance", priority: 99) {
             AppDelegate.quitByUser()
         })

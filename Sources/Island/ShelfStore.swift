@@ -14,6 +14,8 @@ struct ShelfItem: Codable, Identifiable, Equatable {
     var text: String?          // text or link
     var imageFile: String?     // dropped image data (no file behind it) saved in shelf-images/
     var date = Date()
+    /// Pinned items stay on the Shelf after they are dragged out.
+    var pinned = false
 
     init(kind: Kind, name: String, bookmark: Data? = nil, lastPath: String? = nil, text: String? = nil, imageFile: String? = nil) {
         self.kind = kind; self.name = name; self.bookmark = bookmark; self.lastPath = lastPath
@@ -31,6 +33,7 @@ struct ShelfItem: Codable, Identifiable, Equatable {
         text = try? c.decodeIfPresent(String.self, forKey: .text)
         imageFile = try? c.decodeIfPresent(String.self, forKey: .imageFile)
         date = (try? c.decodeIfPresent(Date.self, forKey: .date)) ?? Date()
+        pinned = (try? c.decodeIfPresent(Bool.self, forKey: .pinned)) ?? false
     }
 }
 
@@ -235,15 +238,83 @@ final class ShelfStore {
         NSWorkspace.shared.activateFileViewerSelecting([u])
     }
 
-    func dragProvider(for item: ShelfItem) -> NSItemProvider {
+    /// What a drag out of the Shelf puts on the drag pasteboard: the file (or link, or text) itself.
+    func pasteboardWriter(for item: ShelfItem) -> NSPasteboardWriting {
         switch item.kind {
         case .file, .image:
-            if let u = url(for: item), let p = NSItemProvider(contentsOf: u) { return p }
+            if let u = url(for: item) { return u as NSURL }
         case .link:
-            if let u = url(for: item) { return NSItemProvider(object: u as NSURL) }
+            if let s = item.text, let u = URL(string: s) {
+                let pbItem = NSPasteboardItem()
+                pbItem.setString(u.absoluteString, forType: .URL)
+                pbItem.setString(s, forType: .string)
+                return pbItem
+            }
         case .text: break
         }
-        return NSItemProvider(object: (item.text ?? item.name) as NSString)
+        return (item.text ?? item.name) as NSString
+    }
+
+    func togglePin(_ item: ShelfItem) {
+        guard let i = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[i].pinned.toggle()
+        save()
+    }
+
+    // MARK: Remove after dragging out (with Undo)
+
+    /// The item a successful drag-out just removed, while it can still be put back.
+    private(set) var pendingUndo: ShelfItem?
+    @ObservationIgnored private var pendingIndex = 0
+    @ObservationIgnored private var undoTask: Task<Void, Never>?
+    static let undoSeconds = 5.0
+    static let removedTitle = "Removed from Shelf"
+
+    /// Called when a drag out of the Shelf was dropped somewhere (not on a cancelled drag).
+    func draggedOut(_ item: ShelfItem) {
+        guard AppSettings.shared.prefs.shelfRemoveAfterDrag,
+              let i = items.firstIndex(where: { $0.id == item.id }), !items[i].pinned else { return }
+        finishPendingUndo()   // an earlier removal can no longer be undone
+        let it = items[i]
+        pendingUndo = it
+        pendingIndex = i
+        // Stored image data is kept until Undo is no longer possible; the original file is never touched.
+        withAnimation(IslandModel.openSpring) { _ = items.remove(at: i) }
+        save()
+        // With the Shelf on screen the Undo bar shows there; otherwise a peek with Undo.
+        let m = IslandModel.shared
+        if !(m.expanded && m.page == .shelf) {
+            m.enqueue(Peek(symbol: "tray.and.arrow.up.fill", title: Self.removedTitle, subtitle: it.name,
+                           duration: Self.undoSeconds, actionTitle: "Undo", action: { ShelfStore.shared.undoRemoval() }))
+        }
+        undoTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.undoSeconds + 0.5))
+            guard !Task.isCancelled else { return }
+            self?.finishPendingUndo()
+        }
+    }
+
+    /// Puts the last dragged-out item back where it was (only ever on the user's Undo).
+    func undoRemoval() {
+        guard let it = pendingUndo else { return }
+        undoTask?.cancel()
+        pendingUndo = nil
+        if !items.contains(where: { $0.id == it.id }) {
+            withAnimation(IslandModel.openSpring) { items.insert(it, at: min(pendingIndex, items.count)) }
+            save()
+            loadThumbnail(it)
+        }
+        IslandModel.shared.dropQueuedPeeks(titled: Self.removedTitle)
+        if IslandModel.shared.peek?.title == Self.removedTitle { IslandModel.shared.dismissPeek() }
+    }
+
+    private func finishPendingUndo() {
+        undoTask?.cancel()
+        guard let it = pendingUndo else { return }
+        pendingUndo = nil
+        IslandModel.shared.dropQueuedPeeks(titled: Self.removedTitle)
+        thumbnails[it.id] = nil
+        if let f = it.imageFile { try? FileManager.default.removeItem(at: imageDir.appendingPathComponent(f)) }
     }
 
     func remove(_ item: ShelfItem) {

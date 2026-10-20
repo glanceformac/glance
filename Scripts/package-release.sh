@@ -11,6 +11,14 @@
 #   ARCH=arm64|x86_64|universal   passed to build.sh (default universal)
 #   SKIP_BUILD=1                  pack the existing build/Glance.app without rebuilding
 #   DIST_DIR=<dir>                where to write the files (default dist/)
+#   APPCAST=<file>                appcast to add this release to (default $DIST_DIR/appcast.xml);
+#                                 for a real release: APPCAST=../glance-site/public/appcast.xml
+#   NOTES=<file>                  release notes for the update window (default packaging/release-notes/<version>.md)
+#   SKIP_APPCAST=1                only build and zip; no Sparkle signature or appcast entry
+#
+# Also writes, unless SKIP_APPCAST=1:
+#   appcast.xml         the Sparkle update feed with this release on top, its zip signed with the
+#                       EdDSA key from this Mac's Keychain (see Scripts/make-appcast.sh)
 #
 # There is no paid Apple Developer account, so the app is ad-hoc signed, not notarised.
 set -euo pipefail
@@ -43,9 +51,13 @@ rm -f "$ZIP" "$ZIP.sha256"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 (cd "$DIST" && shasum -a 256 "$(basename "$ZIP")" > "$(basename "$ZIP").sha256")
 
+if [ "${SKIP_APPCAST:-0}" != "1" ]; then
+  "$ROOT/Scripts/make-appcast.sh" --zip "$ZIP" --appcast "${APPCAST:-$DIST/appcast.xml}" ${NOTES:+--notes "$NOTES"}
+fi
+
 SHA="$(cut -d' ' -f1 "$ZIP.sha256")"
 echo "==> Done"
 echo "    $ZIP ($(du -h "$ZIP" | cut -f1))"
 echo "    $ZIP.sha256  $SHA"
-echo "    Upload both to a GitHub release tagged v$VERSION."
+echo "    Upload both to a GitHub release tagged v$VERSION, then publish appcast.xml (see Scripts/make-appcast.sh)."
 echo "    Homebrew cask: version \"$VERSION\", sha256 \"$SHA\""

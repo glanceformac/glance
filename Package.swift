@@ -5,11 +5,18 @@ import PackageDescription
 let package = Package(
     name: "Glance",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        // In-app updates (signed appcast, EdDSA). Pinned so every build uses the same framework.
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+    ],
     targets: [
         .executableTarget(
             name: "Glance",
+            dependencies: [.product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/Island",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            // Sparkle.framework is copied into Contents/Frameworks by build.sh.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         .executableTarget(
             name: "glance-hook",

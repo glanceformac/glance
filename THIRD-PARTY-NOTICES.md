@@ -41,6 +41,15 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## Sparkle
+
+- Source: https://github.com/sparkle-project/Sparkle
+- Version: 2.10.0, the official Swift Package Manager binary (`Package.swift`), copied into the app at
+  `Glance.app/Contents/Frameworks/Sparkle.framework` (its XPC services are left out; Glance is not sandboxed)
+- Used for: in-app updates (checking the update feed, the update window, installing signed updates)
+- Licence: MIT, with the external licences listed in Sparkle's own LICENSE file. A copy is placed inside
+  the app at `Glance.app/Contents/Resources/LICENSE-Sparkle.txt`.
+
 ## Services used at runtime (no code included)
 
 These are called over the network while the app runs. No code or data from them is stored in this repository.
