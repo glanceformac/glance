@@ -73,7 +73,7 @@ final class CharacterRigView: NSView {
             g.frame = CGRect(x: 2, y: -6, width: 120, height: 120)
             g.opacity = 0
         }
-        // Screen blend over the video's black backdrop, like the preview's Kurama glow.
+        // Screen blend over the video's black backdrop, like a soft aura glow.
         glowAbove.compositingFilter = "screenBlendMode"
         root.addSublayer(backing)
         root.addSublayer(glowBelow)
