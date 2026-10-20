@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="sq"><path d="M383.41,100.00 L640.59,100.00 C722.19,100.00 763.00,104.79 806.92,113.89 C854.88,131.34 892.66,169.12 910.11,217.08 C919.21,261.00 924.00,301.81 924.00,383.41 L924.00,640.59 C924.00,722.19 919.21,763.00 910.11,806.92 C892.66,854.88 854.88,892.66 806.92,910.11 C763.00,919.21 722.19,924.00 640.59,924.00 L383.41,924.00 C301.81,924.00 261.00,919.21 217.08,910.11 C169.12,892.66 131.34,854.88 113.89,806.92 C104.79,763.00 100.00,722.19 100.00,640.59 L100.00,383.41 C100.00,301.81 104.79,261.00 113.89,217.08 C131.34,169.12 169.12,131.34 217.08,113.89 C261.00,104.79 301.81,100.00 383.41,100.00Z"/></clipPath>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-opacity="0.30" flood-color="#000"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000" flood-opacity="0.2"/>
+    </filter>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.42" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.45"/><stop offset="0.22" stop-color="#fff" stop-opacity="0.08"/>
+      <stop offset="0.8" stop-color="#fff" stop-opacity="0.02"/><stop offset="1" stop-color="#fff" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="devg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFA23A"/><stop offset="1" stop-color="#F06A0F"/>
+    </linearGradient>
+    <linearGradient id="bgA" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#FFAC8C"/><stop offset="0.34" stop-color="#FF6E8E"/><stop offset="0.75" stop-color="#E2439F"/><stop offset="1" stop-color="#B23AB8"/>
+    </linearGradient>
+    <radialGradient id="sunA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFD9A8" stop-opacity="0.55"/><stop offset="1" stop-color="#FFD9A8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="headA" cx="0.36" cy="0.22" r="0.95">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.55" stop-color="#FBF6FB"/><stop offset="1" stop-color="#E4D3EA"/>
+    </radialGradient>
+    <linearGradient id="aoA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A2B6E" stop-opacity="0"/><stop offset="1" stop-color="#7A2B6E" stop-opacity="0.22"/>
+    </linearGradient>
+    <linearGradient id="pawA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EBDDF0"/>
+    </linearGradient>
+    <linearGradient id="pillA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22202A"/><stop offset="0.35" stop-color="#08070B"/><stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="pillRimA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="0.3" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="barA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC27A"/><stop offset="1" stop-color="#FF6A9A"/>
+    </linearGradient>
+    <linearGradient id="pupA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A2038"/><stop offset="1" stop-color="#120D1C"/>
+    </linearGradient>
+    <radialGradient id="tipGlowA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF4B8" stop-opacity="0.95"/><stop offset="0.4" stop-color="#FFE07A" stop-opacity="0.45"/><stop offset="1" stop-color="#FFE07A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shA" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#6E1450" flood-opacity="0.38"/></filter>
+    <filter id="shA2" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#5A1040" flood-opacity="0.3"/></filter>
+    <clipPath id="aboveA"><rect x="0" y="0" width="1024" height="660"/></clipPath>
+    <clipPath id="headClipA"><path d="M338,740 C336,492 400,338 512,338 C624,338 688,492 686,740 Z"/></clipPath>
+
+  </defs>
+  <g filter="url(#drop)">
+    <g clip-path="url(#sq)">
+
+      <rect width="1024" height="1024" fill="url(#bgA)"/>
+      <ellipse cx="512" cy="600" rx="470" ry="330" fill="url(#sunA)"/>
+      <g transform="translate(0 6)">
+      <g clip-path="url(#aboveA)">
+        <path d="M338,740 C336,492 400,338 512,338 C624,338 688,492 686,740 Z" fill="url(#headA)" filter="url(#shA)"/>
+        <g clip-path="url(#headClipA)">
+          <path d="M640,380 C690,470 700,600 690,740 L760,740 L760,380 Z" fill="#C9A9D6" opacity="0.28"/>
+          <rect x="300" y="486.0" width="420" height="80" fill="url(#aoA)"/>
+        </g>
+        <circle cx="452" cy="252" r="62" fill="url(#tipGlowA)"/>
+        <path d="M506,344 C502,300 486,272 460,258" fill="none" stroke="#F6EEF8" stroke-width="15" stroke-linecap="round"/>
+        <circle cx="452" cy="252" r="19" fill="#FFE27A"/>
+        <circle cx="446" cy="246" r="6" fill="#FFFBE6"/>
+        <ellipse cx="452" cy="470" rx="40" ry="50" fill="url(#pupA)"/>
+<ellipse cx="464.0" cy="452.0" rx="14.4" ry="15.2" fill="#fff"/>
+<circle cx="438.4" cy="490.0" r="6.0" fill="#fff" opacity="0.8"/>
+<ellipse cx="572" cy="470" rx="40" ry="50" fill="url(#pupA)"/>
+<ellipse cx="584.0" cy="452.0" rx="14.4" ry="15.2" fill="#fff"/>
+<circle cx="558.4" cy="490.0" r="6.0" fill="#fff" opacity="0.8"/>
+        <ellipse cx="420" cy="540.0" rx="24" ry="12" fill="#FF7FA6" opacity="0.5"/>
+        <ellipse cx="604" cy="540.0" rx="24" ry="12" fill="#FF7FA6" opacity="0.5"/>
+      </g>
+      <rect x="178.0" y="556.0" width="668" height="200" rx="100.0" fill="url(#pillA)" filter="url(#shA)"/>
+      <rect x="181.0" y="559.0" width="662" height="194" rx="97.0" fill="none" stroke="url(#pillRimA)" stroke-width="3"/>
+      <rect x="684" y="645.0" width="15" height="34" rx="7.5" fill="url(#barA)"/>
+<rect x="710" y="627.0" width="15" height="70" rx="7.5" fill="url(#barA)"/>
+<rect x="736" y="610.0" width="15" height="104" rx="7.5" fill="url(#barA)"/>
+<rect x="762" y="633.0" width="15" height="58" rx="7.5" fill="url(#barA)"/>
+<rect x="788" y="647.0" width="15" height="30" rx="7.5" fill="url(#barA)"/>
+      <g filter="url(#shA2)"><path d="M368,574.0 C368,534.0 394,526.0 418,526.0 C442,526.0 468,534.0 468,574.0 C468,590.0 448,594.0 418,594.0 C388,594.0 368,590.0 368,574.0 Z" fill="url(#pawA)"/>
+<path d="M403,542.0 L403,562.0" stroke="#D9C6E0" stroke-width="6" stroke-linecap="round"/>
+<path d="M433,542.0 L433,562.0" stroke="#D9C6E0" stroke-width="6" stroke-linecap="round"/>
+<path d="M556,574.0 C556,534.0 582,526.0 606,526.0 C630,526.0 656,534.0 656,574.0 C656,590.0 636,594.0 606,594.0 C576,594.0 556,590.0 556,574.0 Z" fill="url(#pawA)"/>
+<path d="M591,542.0 L591,562.0" stroke="#D9C6E0" stroke-width="6" stroke-linecap="round"/>
+<path d="M621,542.0 L621,562.0" stroke="#D9C6E0" stroke-width="6" stroke-linecap="round"/></g>
+      </g>
+
+      <path d="M383.41,100.00 L640.59,100.00 C722.19,100.00 763.00,104.79 806.92,113.89 C854.88,131.34 892.66,169.12 910.11,217.08 C919.21,261.00 924.00,301.81 924.00,383.41 L924.00,640.59 C924.00,722.19 919.21,763.00 910.11,806.92 C892.66,854.88 854.88,892.66 806.92,910.11 C763.00,919.21 722.19,924.00 640.59,924.00 L383.41,924.00 C301.81,924.00 261.00,919.21 217.08,910.11 C169.12,892.66 131.34,854.88 113.89,806.92 C104.79,763.00 100.00,722.19 100.00,640.59 L100.00,383.41 C100.00,301.81 104.79,261.00 113.89,217.08 C131.34,169.12 169.12,131.34 217.08,113.89 C261.00,104.79 301.81,100.00 383.41,100.00Z" fill="url(#sheen)"/>
+    </g>
+  </g>
+  <path d="M384.00,101.50 L640.00,101.50 C721.35,101.50 762.02,106.27 805.80,115.34 C853.60,132.74 891.26,170.40 908.66,218.20 C917.73,261.98 922.50,302.65 922.50,384.00 L922.50,640.00 C922.50,721.35 917.73,762.02 908.66,805.80 C891.26,853.60 853.60,891.26 805.80,908.66 C762.02,917.73 721.35,922.50 640.00,922.50 L384.00,922.50 C302.65,922.50 261.98,917.73 218.20,908.66 C170.40,891.26 132.74,853.60 115.34,805.80 C106.27,762.02 101.50,721.35 101.50,640.00 L101.50,384.00 C101.50,302.65 106.27,261.98 115.34,218.20 C132.74,170.40 170.40,132.74 218.20,115.34 C261.98,106.27 302.65,101.50 384.00,101.50Z" fill="none" stroke="url(#rim)" stroke-width="3"/>
+</svg>
