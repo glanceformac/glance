@@ -29,6 +29,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         settings.target = self
         menu.addItem(settings)
         menu.addItem(login)
+        if Updater.shared.available {
+            let upd = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+            upd.target = self
+            menu.addItem(upd)
+        }
         menu.addItem(.separator())
         let goal = NSMenuItem(title: "Play Goal Celebration", action: #selector(playGoal), keyEquivalent: "")
         goal.target = self
@@ -51,6 +56,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func toggleIsland() { AppSettings.shared.prefs.islandHidden.toggle() }
     @objc private func openSettings() { AppDelegate.shared?.showSettings() }
     @objc private func quit() { AppDelegate.quitByUser() }
+    @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
     @objc private func playGoal() { FootballService.shared.playLastGoal() }
     @objc private func toggleLogin() {
         do {

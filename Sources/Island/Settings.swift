@@ -92,6 +92,13 @@ struct Prefs: Codable, Equatable {
     var clipboardPaused = false
     var clipboardHotkey = true
     var pasteAfterCopy = false
+    /// "Ignore copies from these apps" (bundle ids). Password managers by default; dictation apps
+    /// found on this Mac are only suggested in Settings, never added without asking.
+    var clipboardIgnoredApps: [String] = ClipboardFilter.passwordManagers
+    /// Suggested apps the user said no to (not suggested again).
+    var clipboardDismissedSuggestions: [String] = []
+    /// Shelf: an item dragged out (and dropped somewhere) leaves the Shelf, unless it is pinned.
+    var shelfRemoveAfterDrag = true
     // Look
     var glowEnabled = true
     var glowStyle: GlowStyle = .rainbow
@@ -224,6 +231,9 @@ struct Prefs: Codable, Equatable {
         clipboardPaused = v(.clipboardPaused, d.clipboardPaused)
         clipboardHotkey = v(.clipboardHotkey, d.clipboardHotkey)
         pasteAfterCopy = v(.pasteAfterCopy, d.pasteAfterCopy)
+        clipboardIgnoredApps = v(.clipboardIgnoredApps, d.clipboardIgnoredApps)
+        clipboardDismissedSuggestions = v(.clipboardDismissedSuggestions, d.clipboardDismissedSuggestions)
+        shelfRemoveAfterDrag = v(.shelfRemoveAfterDrag, d.shelfRemoveAfterDrag)
         glowEnabled = v(.glowEnabled, d.glowEnabled)
         glowStyle = v(.glowStyle, d.glowStyle)
         glowWhenClosed = v(.glowWhenClosed, d.glowWhenClosed)

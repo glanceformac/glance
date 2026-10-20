@@ -19,6 +19,10 @@ struct ShelfView: View {
                 Text(shelf.items.isEmpty ? "Drag files, images, text or links onto the island" : "\(shelf.items.count) item\(shelf.items.count == 1 ? "" : "s") · drag out to use · right-click for more")
                     .font(.system(size: 11)).foregroundStyle(theme.tertiary).lineLimit(1)
                 Spacer()
+                if let gone = shelf.pendingUndo {
+                    UndoBar(name: gone.name, theme: theme)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                }
                 if !shelf.items.isEmpty {
                     Button {
                         if confirmClear { shelf.clear(); confirmClear = false }
@@ -61,6 +65,7 @@ struct ShelfView: View {
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dropping)
         }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: shelf.pendingUndo?.id)
         .frame(maxHeight: .infinity, alignment: .top)
         .contentShape(Rectangle())
         .onDrop(of: Self.dropTypes, isTargeted: $targeted) { providers in
@@ -86,10 +91,32 @@ struct DropTile: View {
     }
 }
 
+/// "Removed · Undo" after a drag out of the Shelf (about 5 seconds).
+struct UndoBar: View {
+    let name: String
+    let theme: Theme
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "tray.and.arrow.up.fill").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondary)
+            Text("Removed").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.primary)
+            Button { ShelfStore.shared.undoRemoval() } label: {
+                Text("Undo").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.onAccent)
+                    .padding(.horizontal, 8).frame(height: 18).background(Capsule().fill(theme.accent))
+            }
+            .buttonStyle(PressScaleStyle())
+            .help("Put \(name) back on the Shelf")
+        }
+        .padding(.leading, 10).padding(.trailing, 3).frame(height: 24)
+        .background(Capsule().fill(theme.card))
+    }
+}
+
 struct ShelfTile: View {
     let item: ShelfItem
     let theme: Theme
-    @State private var hover = false
+    @State private var swiftUIHover = false
+    @State private var tileHover = false
+    private var hover: Bool { swiftUIHover || tileHover }
     private let shelf = ShelfStore.shared
 
     var body: some View {
@@ -113,7 +140,23 @@ struct ShelfTile: View {
             }
             .frame(width: 88, height: 112)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.card.opacity(hover ? 1.6 : 1)))
+            // Click opens, drag takes it out (and off the Shelf once dropped), right-click for more.
+            .overlay(ShelfDragArea(item: item, onHover: { h in tileHover = h }))
             .scaleEffect(hover ? 1.03 : 1)
+
+            if item.pinned || hover {
+                Button { shelf.togglePin(item) } label: {
+                    Image(systemName: item.pinned ? "pin.fill" : "pin").font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(item.pinned ? theme.onAccent : .white)
+                        .rotationEffect(.degrees(45))
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(item.pinned ? theme.accent : Color(white: 0.4)))
+                }
+                .buttonStyle(.plain).offset(x: hover ? -16 : 4, y: -4)
+                .help(item.pinned ? "Pinned: stays on the Shelf after dragging out. Click to unpin." : "Pin: keep on the Shelf after dragging out")
+                .accessibilityLabel(item.pinned ? "Unpin" : "Pin")
+                .transition(.scale.combined(with: .opacity))
+            }
 
             if hover, AirDrop.available { // MARK: feat/system-media
                 Button { AirDrop.send(shelfItem: item) } label: {
@@ -135,19 +178,8 @@ struct ShelfTile: View {
             }
         }
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hover)
-        .onHover { hover = $0 }
+        .onHover { swiftUIHover = $0 }
         .onAppear { shelf.loadThumbnail(item) }
-        .onTapGesture { shelf.open(item) }
-        .onDrag { shelf.dragProvider(for: item) }
-        .contextMenu {
-            Button("Open") { shelf.open(item) }
-            if item.kind == .file || item.kind == .image { Button("Quick Look") { shelf.quickLook(item) } }
-            if item.kind == .file { Button("Show in Finder") { shelf.reveal(item) } }
-            if AirDrop.available { Button("AirDrop…") { AirDrop.send(shelfItem: item) } } // MARK: feat/system-media
-            Divider()
-            Button("Remove from Shelf", role: .destructive) { shelf.remove(item) }
-        }
-        .help(item.lastPath ?? item.text ?? item.name)
     }
 }
 

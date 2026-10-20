@@ -42,6 +42,35 @@ enum DebugChannel {
         case "dragzone": withAnimation(IslandModel.openSpring) { m.page = .shelf; m.shelfDragActive = true }; m.setExpanded(true)
         case "dragend": m.shelfDragActive = false
         case "clip-demo": ClipboardStore.shared.debugDemo()
+        case "clip-dump": ClipboardStore.shared.debugDump(to: snapshotDir.appendingPathComponent("clipboard-dump.json"))
+        case "mic-sim":   // mic-sim:<bundle id>  -> that app "just finished recording" (dictation test)
+            if parts.count > 1 { MicHistory.shared.simulated = (parts[1], Date()) }
+        case "shelf-dump": ShelfStore.shared.debugDump(to: snapshotDir.appendingPathComponent("shelf-dump.json"))
+        case "shelf-dragged":   // shelf-dragged:<index>  -> as if that tile was dropped somewhere
+            let s = ShelfStore.shared
+            if parts.count > 1, let i = Int(parts[1]), i < s.items.count { s.draggedOut(s.items[i]) }
+        case "shelf-pin": if parts.count > 1, let i = Int(parts[1]), i < ShelfStore.shared.items.count { ShelfStore.shared.togglePin(ShelfStore.shared.items[i]) }
+        case "shelf-undo": ShelfStore.shared.undoRemoval()
+        case "update-check": Updater.shared.checkForUpdates()
+        case "windows", "window-snap", "window-click":
+            // Isolated test instances only: list / render / press a button in Glance's ordinary windows
+            // (the Sparkle update window). Never the island panel, so never a Claude Allow button.
+            guard Env.isolated else { break }
+            let wins = NSApp.windows.filter { $0.isVisible && !($0 is IslandPanel) }
+            let arg = parts.count > 1 ? parts[1] : ""
+            if parts[0] == "windows" {
+                let rows = wins.map { w in "\(w.title) | \(type(of: w)) | buttons: " + Self.buttons(in: w.contentView).map(\.title).joined(separator: ", ") }
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? rows.joined(separator: "\n").write(to: snapshotDir.appendingPathComponent("windows.txt"), atomically: true, encoding: .utf8)
+            } else if parts[0] == "window-snap" {
+                if let w = wins.first, let v = w.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                    v.cacheDisplay(in: v.bounds, to: rep)
+                    try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("window-\(arg.isEmpty ? "1" : arg).png"))
+                }
+            } else if let b = wins.lazy.flatMap({ Self.buttons(in: $0.contentView) }).first(where: { $0.title == arg && $0.isEnabled }) {
+                b.performClick(nil)
+            }
         case "shelf-demo":
             let s = ShelfStore.shared
             // Only non-protected system files, so no privacy prompt is ever triggered.
@@ -117,6 +146,8 @@ enum DebugChannel {
             case "glowWhenClosed": p.glowWhenClosed = on
             case "cinemaProgress": p.cinemaProgress = on
             case "touchBarGlow": p.touchBarGlow = on
+            case "shelfRemoveAfterDrag": p.shelfRemoveAfterDrag = on
+            case "clipboardIgnore": p.clipboardIgnoredApps = kv[1].split(separator: ",").map(String.init)   // pref:clipboardIgnore=a,b
             default: break
             }
             AppSettings.shared.prefs = p
@@ -154,6 +185,14 @@ enum DebugChannel {
             }
         default: if !PrompterDebug.run(cmd) && !DevFeatures.debug(cmd) { ControlsDebug.run(cmd); SystemMediaDebug.run(cmd) }   // MARK: feat/prompter, feat/claude-dev, feat/controls, feat/system-media
         }
+    }
+
+    static func buttons(in view: NSView?) -> [NSButton] {
+        guard let view else { return [] }
+        var out: [NSButton] = []
+        if let b = view as? NSButton { out.append(b) }
+        for sub in view.subviews { out += buttons(in: sub) }
+        return out
     }
 
     /// Renders Glance's own windows to PNG (in-process layer rendering, no screen-capture
@@ -215,5 +254,24 @@ extension ClipboardStore {
         debugInsert(ClipItem(kind: .text, text: "swift build -c release && ./build.sh", sourceApp: "Ghostty"))
         debugInsert(ClipItem(kind: .files, paths: ["/System/Library/CoreServices/SystemVersion.plist"], sourceApp: "Finder"))
         debugInsert(ClipItem(kind: .text, text: "The quick brown fox jumps over the lazy dog, and then keeps running far past the edge of this row", sourceApp: "Notes"))
+    }
+}
+
+extension ClipboardStore {
+    /// Debug only: what history holds now (kind, source, first characters).
+    func debugDump(to url: URL) {
+        let rows = history.map { ["kind": $0.kind.rawValue, "source": $0.sourceApp ?? "", "bundle": $0.sourceBundle ?? "", "text": String(($0.text ?? $0.preview).prefix(60))] }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted]).write(to: url)
+    }
+}
+
+extension ShelfStore {
+    /// Debug only: Shelf items (name, pinned) and the pending Undo.
+    func debugDump(to url: URL) {
+        let rows: [String: Any] = ["items": items.map { ["name": $0.name, "pinned": $0.pinned, "kind": $0.kind.rawValue] },
+                                   "pendingUndo": pendingUndo?.name ?? ""]
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted]).write(to: url)
     }
 }

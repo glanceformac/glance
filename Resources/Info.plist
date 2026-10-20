@@ -18,6 +18,11 @@
 		<key>CFBundleURLSchemes</key><array><string>glance</string></array>
 	</dict></array>
 	<key>NSHighResolutionCapable</key><true/>
+	<!-- In-app updates (Sparkle 2). Updates must be signed with the EdDSA key whose public half is below. -->
+	<key>SUFeedURL</key><string>https://glanceformac.vercel.app/appcast.xml</string>
+	<key>SUPublicEDKey</key><string>rSCGHgqPvipCOh1hZY/CfTe3lbn2Zaxv5gtTUZVNedI=</string>
+	<key>SUEnableAutomaticChecks</key><true/>
+	<key>SUScheduledCheckInterval</key><integer>86400</integer>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 	<key>NSCalendarsFullAccessUsageDescription</key><string>Glance shows your next calendar event in the expanded island.</string>
 	<key>NSCalendarsUsageDescription</key><string>Glance shows your next calendar event in the expanded island.</string>

@@ -26,6 +26,7 @@ struct SettingsView: View {
                     Text("Brightness control is not available on this display.").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            UpdateSettingsSection()
             ControlsSettingsSections() // MARK: feat/controls
             Section("Context (what is useful when)") {
                 let ctx = IslandContext.shared
@@ -227,14 +228,18 @@ struct SettingsView: View {
                     }))
                 Text(settings.prefs.pasteAfterCopy && !AXIsProcessTrusted()
                      ? "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Glance. Until then, items are only copied."
-                     : "Keeps the last 50 copies plus your Saved snippets, only on this Mac (~/Library/Application Support/Glance, private to your user). Concealed/transient items and copies made in password managers are never stored.")
+                     : "Keeps the last 50 copies plus your Saved snippets, only on this Mac (~/Library/Application Support/Glance, private to your user). Items marked concealed, transient or auto-generated, repeats of the newest item and single characters are never stored.")
                     .font(.caption).foregroundStyle(.secondary)
+                ClipboardIgnoreSettings()
                 HStack {
                     Spacer()
                     Button("Clear History", role: .destructive) { ClipboardStore.shared.clearHistory() }
                 }
             }
             Section("Shelf") {
+                Toggle("Remove items after dragging out", isOn: $settings.prefs.shelfRemoveAfterDrag)
+                Text("When you drop a Shelf item into another app or folder, it leaves the Shelf (Undo for 5 seconds). Pinned items stay. The file itself is never moved or deleted.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Text("Files on the Shelf are references (bookmarks), not copies: if you delete or move the original, the Shelf follows or shows it as missing. Removing an item never touches the original file. Dropped images and text without a file are stored privately in ~/Library/Application Support/Glance.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {

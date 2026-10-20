@@ -61,7 +61,11 @@ cd glance
 ./build.sh install    # also replaces /Applications/Glance.app and opens it
 ```
 
-`ARCH=arm64 ./build.sh` builds for Apple silicon only, which is faster. `Scripts/package-release.sh 1.0.0` makes the release zip and checksum in `dist/`.
+`ARCH=arm64 ./build.sh` builds for Apple silicon only, which is faster. `Scripts/package-release.sh 1.0.0` makes the release zip and checksum in `dist/`, signs the zip for in-app updates and adds it to `dist/appcast.xml`.
+
+### Updates
+
+From version 1.1, Glance updates itself with [Sparkle](https://sparkle-project.org): once a day it checks `https://glanceformac.vercel.app/appcast.xml`, and Settings and the menu bar icon have **Check for Updates…**. You can turn the daily check off in Settings › Updates. Every update is signed with an EdDSA key, and Glance refuses a download whose signature does not match the public key built into the app.
 
 ## Cinema mode (Chrome extension)
 

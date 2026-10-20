@@ -18,6 +18,8 @@ MRA_SRC="$ROOT/Vendor/mediaremote-adapter"
 OBJ="$ROOT/build/obj"
 BUNDLE_ID="app.glanceformac.glance"
 VERSION="${GLANCE_VERSION:-1.0}"
+# Sparkle compares CFBundleVersion, so it follows the version (1.1.0 > 1.0.0 > the old "1").
+BUILD_NUMBER="${GLANCE_BUILD:-$VERSION}"
 
 # Each architecture is built on its own (multi-arch swift build needs full Xcode), then lipo
 # joins them into universal binaries.
@@ -53,14 +55,30 @@ cat > "$BAR/Contents/Info.plist" <<PLIST
 <key>CFBundleExecutable</key><string>GlanceBar</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$VERSION</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 </dict></plist>
 PLIST
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
+# Test builds only: GLANCE_BUNDLE_ID gives a separate app identity (own settings, own Sparkle state).
+if [ -n "${GLANCE_BUNDLE_ID:-}" ]; then
+  BUNDLE_ID="$GLANCE_BUNDLE_ID"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.bar" "$BAR/Contents/Info.plist"
+fi
 cp "$ROOT/Resources/Glance.icns" "$APP/Contents/Resources/Glance.icns"
+
+echo "==> Sparkle.framework (in-app updates, MIT)"
+SPARKLE_FW="$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+[ -d "$SPARKLE_FW" ] || { echo "Sparkle.framework not found; run: swift package resolve" >&2; exit 1; }
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$SPARKLE_FW" "$APP/Contents/Frameworks/Sparkle.framework"   # ditto keeps the framework symlinks
+# Glance is not sandboxed, so Sparkle's XPC services are not used (Sparkle docs: safe to remove).
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
+cp "$ROOT/.build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/LICENSE-Sparkle.txt"
 
 echo "==> building MediaRemoteAdapter.framework (ungive/mediaremote-adapter, BSD-3-Clause)"
 FW="$APP/Contents/Resources/mediaremote/MediaRemoteAdapter.framework"
@@ -98,6 +116,10 @@ chmod +x "$APP/Contents/Resources/install-chrome-host.sh"
 
 echo "==> ad-hoc codesign"
 codesign --force --sign - "$FW"
+SPK="$APP/Contents/Frameworks/Sparkle.framework"
+codesign --force --sign - "$SPK/Versions/B/Autoupdate"
+codesign --force --sign - "$SPK/Versions/B/Updater.app"
+codesign --force --sign - "$SPK"
 # Ad-hoc signatures normally get a cdhash-based designated requirement, which changes on
 # every build, so macOS (TCC) treats each rebuild as a new app and asks for Calendar /
 # Location / Automation again. Pin the designated requirement to the bundle identifier so

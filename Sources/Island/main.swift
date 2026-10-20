@@ -28,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DevFeatures.start() // MARK: feat/claude-dev
             AppSettings.shared.onChange = { old, new in DevFeatures.prefsChanged(old.dev, new.dev) }
             ControlsFeature.start() // MARK: feat/controls (chains onto onChange, so it goes last)
+            // Test instances: clipboard + Shelf on their private pasteboard and data folder,
+            // and the updater only when GLANCE_UPDATE_FEED points it at a test feed.
+            if ProcessInfo.processInfo.environment["GLANCE_TEST_CLIPBOARD"] == "1" { ClipboardStore.shared.updateRunning() }
+            Updater.shared.start()
             return
         }
 
@@ -54,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GitWatch.shared.start()   // MARK: wip/cinema-h
         TodoStore.shared.scheduleTimers()
         BreakReminder.shared.apply(minutes: ToolsPrefs.shared.data.breakReminderMinutes)   // MARK: feat/productivity
+        Updater.shared.start()   // Sparkle: daily check (can be switched off in Settings); before the menu is built
         statusMenu.update()
         DevFeatures.start() // MARK: feat/claude-dev
         if AppSettings.shared.prefs.islandHidden { island?.setHidden(true) }
@@ -88,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if old.islandHidden != new.islandHidden { self.island?.setHidden(new.islandHidden) }
             if old.showMenuBarIcon != new.showMenuBarIcon { self.statusMenu.update() }
             if old.accent != new.accent { Look.shared.refreshWallpaperIfNeeded() }
-            if old.clipboardPaused != new.clipboardPaused { ClipboardStore.shared.updateRunning() }
+            if old.clipboardPaused != new.clipboardPaused || old.clipboardIgnoredApps.isEmpty != new.clipboardIgnoredApps.isEmpty { ClipboardStore.shared.updateRunning() }
             if old.clipboardHotkey != new.clipboardHotkey { ClipboardHotKey.update() }
             if old.dev != new.dev { DevFeatures.prefsChanged(old.dev, new.dev) } // MARK: feat/claude-dev
         }

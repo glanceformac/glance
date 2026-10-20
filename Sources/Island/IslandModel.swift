@@ -272,6 +272,11 @@ final class IslandModel {
         }
     }
 
+    /// Drops waiting peeks that are no longer true (e.g. an Undo that has expired).
+    func dropQueuedPeeks(titled title: String) {
+        peekQueue.removeAll { $0.title == title }
+    }
+
     func dismissPeek() {
         guard peek != nil else { return }
         withAnimation(Self.closeSpring) { peek = nil }
