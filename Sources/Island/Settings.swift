@@ -196,6 +196,8 @@ struct Prefs: Codable, Equatable {
     var cinemaTitleMigrated = true
     // MARK: feat/claude-dev
     var dev = DevPrefs()
+    // MARK: wip/character
+    var character = CharacterPrefs()
 
     init() {}
     // Tolerant decoding so new fields never wipe a saved layout.
@@ -325,6 +327,7 @@ struct Prefs: Codable, Equatable {
         if !cinemaTitleMigrated { cinemaTitle = false; cinemaTitleMigrated = true }
 
         dev = v(.dev, d.dev) // MARK: feat/claude-dev
+        character = v(.character, d.character) // MARK: wip/character
     }
 }
 

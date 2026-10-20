@@ -7,6 +7,19 @@ struct PermissionView: View {
     private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)
 
     var body: some View {
+        // MARK: wip/character: the character waves on the left while Claude waits.
+        HStack(spacing: 0) {
+            if CharacterEngine.shared.active {
+                CharacterRig(darkBackdrop: theme.dark)
+                    .frame(width: 118)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .padding(.leading, 10).padding(.bottom, 14)
+            }
+            card
+        }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 ZStack {

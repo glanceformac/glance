@@ -286,6 +286,7 @@ extension ClaudeServer {
         let cwd = msg["cwd"] as? String ?? ""
         let project = cwd.isEmpty ? "Claude Code" : (cwd as NSString).lastPathComponent
         let session = msg["session_id"] as? String ?? ""
+        CharacterEngine.shared.claude(event: event, session: session, msg: msg) // MARK: wip/character
 
         switch event {
         case "PermissionRequest":
