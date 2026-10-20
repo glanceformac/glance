@@ -15,6 +15,8 @@ final class CalendarService {
     var accessDenied = false
     /// A (timed) calendar event is happening right now: used by the context rules ("in a meeting").
     private(set) var eventNow = false
+    /// Start of the next timed event that has not started yet (the character's meeting watch).
+    private(set) var nextStart: Date? // MARK: wip/character
 
     @ObservationIgnored private let store = EKEventStore()
     @ObservationIgnored private var timer: Timer?
@@ -93,6 +95,7 @@ final class CalendarService {
             nextTime = nil
             eventNow = false
         }
+        nextStart = events.first { $0.startDate > now }?.startDate // MARK: wip/character
         scheduleKickoff(events.first { $0.startDate > now })
         IslandContext.shared.reevaluate()
         // Re-check when the next event starts/ends, or in 15 min at most.

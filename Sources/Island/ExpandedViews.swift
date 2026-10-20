@@ -56,7 +56,16 @@ struct ExpandedContent: View {
                     case .mirror: MirrorView(theme: theme)
                     case .volume: SoundPage(theme: theme) // MARK: feat/system-media
                     case .brightness: SliderPage(theme: theme, kind: .brightness)
-                    default: CardsRow(theme: theme)
+                    default:
+                        // MARK: wip/character: the character stands on the left of Home.
+                        HStack(spacing: 8) {
+                            if CharacterEngine.shared.showing {
+                                CharacterRig(darkBackdrop: theme.dark)
+                                    .frame(width: 112)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottom)))
+                            }
+                            CardsRow(theme: theme)
+                        }
                     }
                 }
                 .frame(height: 132)

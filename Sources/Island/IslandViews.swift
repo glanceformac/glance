@@ -320,8 +320,12 @@ struct ClosedContent: View {
                     .font(.system(size: 11, weight: .semibold).monospacedDigit()).foregroundStyle(Color(red: 1, green: 0.3, blue: 0.3))
                     .padding(.trailing, 15)
             } else if np.hasMedia {
-                ArtworkView(image: np.artwork, size: 20, corner: 5)
-                    .padding(.leading, 14)
+                if CharacterEngine.shared.showing { // MARK: wip/character (the character takes the artwork's place)
+                    CharacterPillSlot(theme: theme)
+                } else {
+                    ArtworkView(image: np.artwork, size: 20, corner: 5)
+                        .padding(.leading, 14)
+                }
                 Spacer(minLength: 0)
                 AudioBars(playing: np.isPlaying || (np.bundleID == "com.google.Chrome" && ChromeAmbilight.shared.playing),
                           color: AppSettings.shared.prefs.musicColors ? Look.shared.musicPrimary : theme.primary)
@@ -349,6 +353,10 @@ struct ClosedContent: View {
                 Spacer(minLength: 0)
                 Text(FocusMatch.shared.scoreLine).font(.system(size: 11, weight: .bold).monospacedDigit()).foregroundStyle(theme.primary)
                     .padding(.trailing, 16)
+            } else if CharacterEngine.shared.showing { // MARK: wip/character
+                CharacterPillSlot(theme: theme)
+                Spacer(minLength: 0)
+                CharacterPillIndicator().padding(.trailing, 14)
             } else {
                 Spacer(minLength: 0)
             }

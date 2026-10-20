@@ -193,6 +193,7 @@ final class ShelfStore {
 
     fileprivate func insert(_ item: ShelfItem) {
         withAnimation(IslandModel.openSpring) { items.insert(item, at: 0) }
+        CharacterEngine.shared.shelfDropped(name: item.name) // MARK: wip/character
         save()
         loadThumbnail(item)
     }

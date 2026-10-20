@@ -166,6 +166,23 @@ enum DebugChannel {
         case "settings": AppDelegate.shared?.showSettings()
         case "tools": ToolsDebug.run(parts.count > 1 ? parts[1] : "")   // MARK: feat/productivity
         case "snapshot": snapshot(name: parts.count > 1 ? parts[1] : "snap")
+        case "char": // MARK: wip/character  char:<state> plays a state for 60 s, char:live ends it
+            CharacterEngine.shared.preview(parts.count > 1 ? CharacterState(rawValue: parts[1]) : nil, seconds: 60)
+        case "char-rig-snap": // char-rig-snap:<state> one rig, stills, rendered offscreen at 2x
+            let st = CharacterState(rawValue: parts.count > 1 ? parts[1] : "idle") ?? .idle
+            if let img = CharacterRigView.snapshot(st, pack: CharacterEngine.shared.pack ?? MochiArt.pack) {
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue).png"))
+            }
+        case "char-tb-snap": // the character Touch Bar strip, rendered offscreen
+            let v = CharacterStripView(frame: NSRect(x: 0, y: 0, width: 1085, height: 30))
+            v.apply(CharacterTouchBar.content())
+            v.layoutSubtreeIfNeeded()
+            if let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? rep.representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-tb-\(CharacterEngine.shared.frame.state.rawValue).png"))
+            }
         case "tb-snap":
             // tb-snap:<phase>  -> render the Touch Bar equaliser offscreen with a synthetic spectrum (no real Touch Bar).
             let ph = Double(parts.count > 1 ? parts[1] : "0") ?? 0

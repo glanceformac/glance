@@ -341,6 +341,7 @@ enum IslandBarHelper {
     /// Registers the tiny IslandBar helper (Contents/Library/LoginItems) so the Control Strip
     /// button survives restarts and works even when Glance is quit.
     static func update() {
+        guard !AppIdentity.isTestBuild else { return } // MARK: wip/character
         let svc = SMAppService.loginItem(identifier: bundleID)
         let log = ChromeAmbilight.log
         if AppSettings.shared.prefs.touchBarButton {

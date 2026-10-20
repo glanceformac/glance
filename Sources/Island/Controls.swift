@@ -54,7 +54,7 @@ struct ControlsSettingsSections: View {
     @State private var trusted = KnockMonitor.trusted
 
     var body: some View {
-        IslandShapeSettingsSection()
+        // The shape section lives on the Island and Notch page (wip/character settings sidebar).
         Section("Keep Mac awake") {
             Toggle("Keep screen on too", isOn: $settings.prefs.keepAwakeDisplay)
             Toggle("Show cup in the menu bar", isOn: $settings.prefs.keepAwakeMenuBar)

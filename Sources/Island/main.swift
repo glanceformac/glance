@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusMenu = StatusMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if ProcessInfo.processInfo.arguments.contains("--character-selftest") { CharacterSelfTest.run() } // MARK: wip/character
         Env.checkIsolation()   // isolated test mode: private data folder, defaults and pasteboard (logged)
         // Cinema intro/outro: sample the keyframes and draw the text once, so the first play is smooth.
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -61,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.start()   // Sparkle: daily check (can be switched off in Settings); before the menu is built
         statusMenu.update()
         DevFeatures.start() // MARK: feat/claude-dev
+        CharacterEngine.shared.start() // MARK: wip/character
         if AppSettings.shared.prefs.islandHidden { island?.setHidden(true) }
         DebugChannel.install()
         installSignalHandlers()
@@ -102,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Debug/testing hook: `open Glance.app --args --expanded` or `--peek`.
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--expanded") { IslandModel.shared.setExpanded(true); IslandModel.shared.editing = args.contains("--edit") }
+        showSettingsOnLaunchIfWanted() // MARK: wip/character
         if args.contains("--peek") {
             IslandModel.shared.enqueue(Peek(symbol: "bolt.fill", title: "Charging", subtitle: "82%", tint: .green, duration: 30))
         }
@@ -127,7 +130,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DevFeatures.terminate() // MARK: feat/claude-dev
     }
 
-    func showSettings() { settingsWindow.show() }
+    func showSettings(page: SettingsPage? = nil) { settingsWindow.show(page: page) }
+
+    // MARK: wip/character: opening Glance shows Settings, like a normal app.
+
+    /// Launched by the login item (or at boot): stay quiet in the menu bar.
+    private var launchedAsLoginItem = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        if let e = NSAppleEventManager.shared().currentAppleEvent, e.eventID == kAEOpenApplication,
+           e.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem {
+            launchedAsLoginItem = true
+        }
+    }
+
+    /// Settings on a launch by hand, and always on the first launch of a new install or version.
+    private func showSettingsOnLaunchIfWanted() {
+        let key = "SettingsShownForBuild"
+        let stamp = "\(Bundle.main.bundlePath)|\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")"
+        let firstOfThisBuild = Env.defaults.string(forKey: key) != stamp
+        let byHand = !launchedAsLoginItem && ProcessInfo.processInfo.systemUptime > 180
+            && !ProcessInfo.processInfo.arguments.contains("--no-settings")
+        guard firstOfThisBuild || byHand else { return }
+        Env.defaults.set(stamp, forKey: key)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.showSettings() }
+    }
 
     /// Quit chosen by the user (menu bar, Settings, command palette). Unlike a system restart
     /// or an update, it also forgets Keep awake so it does not switch itself on again next time.
@@ -153,6 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.showMenuBarIcon = true
         p.islandHidden = false
         AppSettings.shared.prefs = p
+        showSettings() // MARK: wip/character: and opens Settings, like any app
         return false
     }
 }

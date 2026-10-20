@@ -15,6 +15,7 @@ enum OpenAtLogin {
     /// Called once at launch (not in isolated test instances).
     static func applyDefault() {
         let d = Env.defaults
+        guard !AppIdentity.isTestBuild else { return } // MARK: wip/character
         guard d.object(forKey: userChoiceKey) == nil, !d.bool(forKey: autoDoneKey) else { return }
         d.set(true, forKey: autoDoneKey)
         guard SMAppService.mainApp.status != .enabled else { return }
