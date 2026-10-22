@@ -7,6 +7,36 @@ Hover over it and it opens into a panel with your music, weather, calendar, a fo
 <!-- Demo GIF or video goes here, for example: ![Glance demo](docs/demo.gif) -->
 *Demo GIF coming soon.*
 
+## New in 1.1
+
+Glance 1.1 is out. Get it with `brew upgrade --cask glance`, or download it from the [release page](https://github.com/glanceformac/glance/releases/tag/v1.1.0). From 1.1 on, Glance updates itself.
+
+**A character in your notch.** Pick Mochi, Kitsune or Pocket ninja in Settings › Character. It naps when you are away, moves to your music, slips away when a video goes full screen and waits beside Claude Code when it needs your OK. You can also add your own character packs.
+
+<img src="docs/images/1.1/characters.png" alt="The three characters: Mochi, Kitsune and Pocket ninja" width="560">
+
+**Shadow Clones.** While Claude Code runs helper agents, a small clone appears for each one with its name and status. It waves when that helper needs your OK and vanishes in a puff when it finishes. The clones also show in the closed island and on the Touch Bar.
+
+<img src="docs/images/1.1/shadow-clones.png" alt="Shadow Clones in the open island: working, needs you and done, for Kitsune, Pocket ninja and Mochi" width="720">
+
+<img src="docs/images/1.1/shadow-clones-pill.png" alt="Shadow Clones as small faces in the closed island, with the count" width="300">
+
+**Touch Bar.** On Macs with a Touch Bar, the character, Claude's status, the clones and Approve and Deny buttons show there too.
+
+<img src="docs/images/1.1/touch-bar.png" alt="The character on the Touch Bar of a 13-inch MacBook Pro" width="720">
+
+**Updates inside the app.** Glance checks for a new version once a day, and you can check any time from the menu bar icon, Settings or the command palette. Updates are signed, so only real Glance releases install.
+
+**A quieter clipboard.** Dictation, password managers and apps you choose are left out of Clipboard history. New switches ignore copies from terminals (Terminal, Ghostty, iTerm, Warp and others) and file copies from Finder.
+
+<img src="docs/images/1.1/clipboard-switches.png" alt="Settings, Clipboard, with the switches for terminals and Finder file copies" width="560">
+
+**Never lose the island.** When the island is hidden, Settings says so at the top of every page, with a button to bring it back.
+
+<img src="docs/images/1.1/hidden-island-banner.png" alt="Settings showing the banner: The island is hidden, with a Show the island button" width="560">
+
+The Shelf also tidies itself (a file you drag out leaves it, with Undo), and Glance uses less CPU while idle. Full notes are on the [release page](https://github.com/glanceformac/glance/releases/tag/v1.1.0).
+
 ## What it does
 
 - **Now Playing** with artwork, controls, synced lyrics and a visualiser in the pill.
