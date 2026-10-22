@@ -61,7 +61,7 @@ cd glance
 ./build.sh install    # also replaces /Applications/Glance.app and opens it
 ```
 
-`ARCH=arm64 ./build.sh` builds for Apple silicon only, which is faster. `Scripts/package-release.sh 1.0.0` makes the release zip and checksum in `dist/`, signs the zip for in-app updates and adds it to `dist/appcast.xml`.
+`ARCH=arm64 ./build.sh` builds for Apple silicon only, which is faster. `Scripts/package-release.sh 1.1.0` makes the release zip and checksum in `dist/`, signs the zip for in-app updates and adds it to `dist/appcast.xml`.
 
 ### Updates
 

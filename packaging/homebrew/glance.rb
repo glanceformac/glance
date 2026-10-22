@@ -17,6 +17,8 @@ cask "glance" do
     strategy :github_latest
   end
 
+  # Glance updates itself (Sparkle) from 1.1.0 on, so brew does not fight the in-app updater.
+  auto_updates true
   depends_on macos: ">= :sonoma"
 
   app "Glance.app"
