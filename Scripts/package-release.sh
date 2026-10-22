@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds a release of Glance and packs it for GitHub Releases.
 #
-#   Scripts/package-release.sh [version]          e.g. Scripts/package-release.sh 1.0.0
+#   Scripts/package-release.sh [version]          e.g. Scripts/package-release.sh 1.1.0
 #
 # Output in dist/ (or $DIST_DIR):
 #   Glance.zip          Glance.app (universal, ad-hoc signed). The Chrome extension is inside it.
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-${GLANCE_VERSION:-1.0.0}}"
+VERSION="${1:-${GLANCE_VERSION:-1.1.0}}"
 DIST="${DIST_DIR:-$ROOT/dist}"
 APP="$ROOT/build/Glance.app"
 ZIP="$DIST/Glance.zip"

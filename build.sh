@@ -17,7 +17,7 @@ APP="$ROOT/build/Glance.app"
 MRA_SRC="$ROOT/Vendor/mediaremote-adapter"
 OBJ="$ROOT/build/obj"
 BUNDLE_ID="app.glanceformac.glance"
-VERSION="${GLANCE_VERSION:-1.0}"
+VERSION="${GLANCE_VERSION:-1.1.0}"
 # Sparkle compares CFBundleVersion, so it follows the version (1.1.0 > 1.0.0 > the old "1").
 BUILD_NUMBER="${GLANCE_BUILD:-$VERSION}"
 
