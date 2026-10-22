@@ -1,0 +1,53 @@
+# Builds Glance on every push to release/** and wip/** branches and on pull requests, runs the
+# headless character self-test, and uploads the unsigned app (ad-hoc signed, zipped) as an
+# artifact for testing. No secrets: release builds and Sparkle signing happen on the
+# maintainer's Mac with Scripts/package-release.sh.
+name: Build
+
+on:
+  push:
+    branches: ["release/**", "wip/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app || true
+          swift --version
+
+      - name: Build Glance.app (universal)
+        run: ./build.sh
+
+      - name: Character self-test
+        run: |
+          # Isolated data so the test never needs a real user's folders; 120 s limit.
+          export GLANCE_SOCKET_PATH="$RUNNER_TEMP/glance/g.sock"
+          mkdir -p "$RUNNER_TEMP/glance"
+          perl -e 'alarm 120; exec @ARGV' build/Glance.app/Contents/MacOS/Glance --character-selftest --no-permissions --no-settings
+
+      - name: Check the bundle has only the public characters
+        run: |
+          ls build/Glance.app/Contents/Resources/Characters
+          test "$(ls build/Glance.app/Contents/Resources/Characters | tr '\n' ' ')" = "kitsune pocket-ninja "
+
+      - name: Zip
+        run: ditto -c -k --keepParent build/Glance.app Glance.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Glance-${{ github.sha }}
+          path: Glance.zip
+          retention-days: 14
