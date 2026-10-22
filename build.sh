@@ -70,6 +70,9 @@ if [ -n "${GLANCE_BUNDLE_ID:-}" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.bar" "$BAR/Contents/Info.plist"
 fi
 cp "$ROOT/Resources/Glance.icns" "$APP/Contents/Resources/Glance.icns"
+# Built-in character packs (Kitsune, Pocket ninja). Personal packs never ship: they live in
+# ~/Library/Application Support/Glance/Characters on the user's own Mac.
+cp -R "$ROOT/Resources/Characters" "$APP/Contents/Resources/Characters"
 
 echo "==> Sparkle.framework (in-app updates, MIT)"
 SPARKLE_FW="$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"

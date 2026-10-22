@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Test instances: clipboard + Shelf on their private pasteboard and data folder,
             // and the updater only when GLANCE_UPDATE_FEED points it at a test feed.
             if ProcessInfo.processInfo.environment["GLANCE_TEST_CLIPBOARD"] == "1" { ClipboardStore.shared.updateRunning() }
+            if ProcessInfo.processInfo.environment["GLANCE_TEST_VISIBLE"] == "1" { CharacterEngine.shared.start() }
             Updater.shared.start()
             return
         }
