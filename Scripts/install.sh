@@ -11,7 +11,8 @@
 #   --extension-id <id>     also allow a Chrome extension ID you loaded from another folder
 #   --no-chrome             skip the Chrome (Cinema mode) setup
 #   --no-open               do not open Glance after installing
-#   --uninstall             remove Glance.app and its Chrome setup (your settings are kept)
+#   --uninstall             remove Glance.app and its Chrome setup (your settings are kept;
+#                           the Chrome setup stays if --no-chrome or if it belongs to another copy)
 #
 # What it does: downloads Glance.zip and its SHA-256 checksum, checks them, copies Glance.app to
 # /Applications, removes the download quarantine flag from Glance.app only (the app is ad-hoc
@@ -73,7 +74,11 @@ if [ "$MODE" = "uninstall" ]; then
   if [ -e "$TARGET" ]; then
     is_glance "$TARGET" || die "$TARGET is not Glance for Mac ($BUNDLE_ID); leaving it alone."
     quit_glance
-    if [ -x "$TARGET/Contents/Resources/install-chrome-host.sh" ]; then
+    # The Chrome setup is shared by every copy of Glance: remove it only when it belongs to this
+    # copy (its host file points inside $TARGET), and never with --no-chrome.
+    HOST_FILE="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/app.glanceformac.glance.json"
+    if [ "$CHROME" = 1 ] && [ -x "$TARGET/Contents/Resources/install-chrome-host.sh" ] \
+       && { [ ! -f "$HOST_FILE" ] || grep -qF "\"$TARGET/Contents/MacOS/" "$HOST_FILE"; }; then
       GLANCE_APP="$TARGET" "$TARGET/Contents/Resources/install-chrome-host.sh" --uninstall >/dev/null || true
     fi
     rm -rf "$TARGET"
