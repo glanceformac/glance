@@ -132,7 +132,9 @@ final class IslandModel {
         let wide = FootballService.shared.pillMatch != nil
             || (AppSettings.shared.prefs.focusScoreInPill && AppSettings.shared.prefs.focusMatch && !NowPlaying.shared.hasMedia)
         let base = wide ? CGSize(width: 240, height: 32) : IslandMetrics.closed
-        return HardwareNotch.closedSize(fitting: base, extra: wide ? 20 : 0)
+        // MARK: wip/character: Shadow Clones' faces and count need more room right of a notch.
+        let clones = CharacterEngine.shared.clonesShowing && CharacterEngine.shared.showing ? 66 : 0
+        return HardwareNotch.closedSize(fitting: base, extra: max(wide ? 20 : 0, CGFloat(clones)))
     }
 
     var cornerRadius: CGFloat {

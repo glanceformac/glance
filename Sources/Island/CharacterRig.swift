@@ -640,8 +640,12 @@ struct CharacterPillSlot: View {
 struct CharacterPillIndicator: View {
     var body: some View {
         let f = CharacterEngine.shared.frame
+        let heads = !f.helpers.isEmpty && !f.gone
         HStack(spacing: 5) {
             switch f.state {
+            case .thinking where heads, .approval where heads:
+                // The clones' faces and count say it already (and the pill has little room).
+                EmptyView()
             case .thinking:
                 Circle().fill(Color(red: 0.43, green: 0.7, blue: 1)).frame(width: 7, height: 7).shadow(color: Color(red: 0.43, green: 0.7, blue: 1), radius: 4)
             case .approval:
