@@ -163,7 +163,8 @@ enum DebugChannel {
         case "showends": ChromeAmbilight.shared.showEnds()
         case "titlecard": ChromeAmbilight.shared.showTitleCard(after: 0)
         case "cinema-sim": ChromeAmbilight.shared.previewSimulated(seconds: 6)
-        case "settings": AppDelegate.shared?.showSettings()
+        case "settings": AppDelegate.shared?.showSettings(page: parts.count > 1 ? SettingsPage(rawValue: parts[1]) : nil)   // settings[:<page>]
+        case "settings-close": AppDelegate.shared?.closeSettings()
         case "tools": ToolsDebug.run(parts.count > 1 ? parts[1] : "")   // MARK: feat/productivity
         case "snapshot": snapshot(name: parts.count > 1 ? parts[1] : "snap")
         case "char": // MARK: wip/character  char:<state> plays a state for 60 s, char:live ends it

@@ -426,17 +426,28 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: SettingsView())
             w.contentMinSize = NSSize(width: 760, height: 560)
-            w.setFrameAutosaveName("GlanceSettingsWindow")
             w.delegate = self
-            if !w.setFrameUsingName("GlanceSettingsWindow") { w.center() }
+            if Self.offscreenTest {
+                w.setFrameOrigin(NSPoint(x: -30000, y: 0))
+            } else {
+                w.setFrameAutosaveName("GlanceSettingsWindow")
+                if !w.setFrameUsingName("GlanceSettingsWindow") { w.center() }
+            }
             window = w
         }
         if let page { NotificationCenter.default.post(name: SettingsPage.showNotification, object: page) }
         IslandModel.shared.setExpanded(false)
+        if Self.offscreenTest { window?.orderFront(nil); return }
         AppMenu.becomeRegular()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    func close() { window?.close() }
+
+    /// Isolated performance tests (GLANCE_TEST_OFFSCREEN=1): Settings opens far off-screen, without
+    /// activating, a Dock icon or a saved frame, like the island panel in that mode.
+    private static var offscreenTest: Bool { Env.isolated && ProcessInfo.processInfo.environment["GLANCE_TEST_OFFSCREEN"] == "1" }
 
     func windowWillClose(_ notification: Notification) {
         AppMenu.becomeAccessory()
