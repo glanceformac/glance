@@ -42,5 +42,8 @@
     "approval": "art/tb-approval.png",
     "finished": "art/tb-finished.png",
     "sleeping": "art/tb-sleeping.png"
+  },
+  "clones": {
+    "effect": "foxfire"
   }
 }

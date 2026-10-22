@@ -3,7 +3,8 @@ import AVFoundation
 import SwiftUI
 
 /// Draws one character pose with Core Animation: the art (a still or a looping video), the
-/// glow, and the small effects (z's, sparkles, the Shelf file, the meeting watch, shadow clones).
+/// glow, and the small effects (z's, sparkles, the Shelf file, the meeting watch). Shadow
+/// clones are drawn beside it by CloneStripView, CloneHeadsView and the Touch Bar strip.
 /// Everything is laid out in a 124 x 120 point box (the expanded island size) and scaled to the
 /// view, so the island, the notch and the Touch Bar show the same pose and the same motion.
 ///
@@ -34,9 +35,6 @@ final class CharacterRigView: NSView {
     private let doc = CALayer()
     private let watch = CALayer()
     private let watchHand = CALayer()
-    private let cloneHost = CALayer()
-    private var cloneLayers: [CALayer] = []
-    private let moreLabel = CATextLayer()
 
     /// Uses the pack's small Touch Bar stills when it has them.
     var compact = false
@@ -86,8 +84,6 @@ final class CharacterRigView: NSView {
             l.anchorPoint = CGPoint(x: 0.5, y: 1)
             l.position = CGPoint(x: Self.design.width / 2, y: Self.design.height)
         }
-        cloneHost.frame = root.bounds
-        root.addSublayer(cloneHost)
         root.addSublayer(ent)
         ent.addSublayer(mot)
         img.contentsGravity = .resizeAspect
@@ -168,7 +164,7 @@ final class CharacterRigView: NSView {
                 self?.updateRunning()
             }
             if let s = w.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor {
-                for l in [img, doc, moreLabel] { l.contentsScale = s }
+                for l in [img, doc] { l.contentsScale = s }
                 zs.forEach { $0.contentsScale = s }
             }
         }
@@ -203,7 +199,6 @@ final class CharacterRigView: NSView {
         }
         CATransaction.commit()
         if restart { restartAnimations(entry: true) } else if contentChanged { restartAnimations(entry: false) }
-        updateClones()
         updateRunning()
     }
 
@@ -213,7 +208,6 @@ final class CharacterRigView: NSView {
         videoBox.isHidden = true
         backing.isHidden = true
         [glowBelow, glowAbove].forEach { $0.opacity = 0; $0.removeAllAnimations() }
-        cloneLayers.forEach { $0.removeFromSuperlayer() }; cloneLayers = []
         contentKey = ""
     }
 
@@ -569,79 +563,35 @@ final class CharacterRigView: NSView {
         watch.addSublayer(hour); watch.addSublayer(watchHand)
         watch.opacity = 0
         fx.addSublayer(watch)
-        moreLabel.alignmentMode = .center
-        moreLabel.contentsScale = 2
-        moreLabel.frame = CGRect(x: 92, y: 2, width: 30, height: 14)
-        moreLabel.opacity = 0
-        fx.addSublayer(moreLabel)
-    }
-
-    // MARK: Shadow clones (running Claude Code subagents)
-    // Basic version: translucent copies behind the main pose, up to five, then +N. The count comes
-    // from CloneTracker (one per running subagent). Still to build from the approved design: one
-    // cell per agent with its label and state, per-clone poses, and Touch Bar runners.
-
-    private static let cloneSlots: [(x: CGFloat, y: CGFloat, s: CGFloat)] = [(-34, 0, 0.78), (34, 0, 0.78), (-50, -6, 0.62), (50, -6, 0.62), (0, -14, 0.58)]
-
-    private func updateClones() {
-        let want = frameValue.gone || frameValue.state == .movie ? 0 : min(frameValue.clones, Self.cloneSlots.count)
-        let src = img.contents
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        while cloneLayers.count > want {
-            let l = cloneLayers.removeLast()
-            // Poof: a quick puff outwards, then gone.
-            let g = CAAnimationGroup()
-            let s = CABasicAnimation(keyPath: "transform.scale"); s.toValue = 1.4
-            let o = CABasicAnimation(keyPath: "opacity"); o.toValue = 0
-            g.animations = [s, o]; g.duration = 0.45; g.fillMode = .forwards; g.isRemovedOnCompletion = false
-            l.add(g, forKey: "poof")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { l.removeFromSuperlayer() }
-        }
-        while cloneLayers.count < want {
-            let slot = Self.cloneSlots[cloneLayers.count]
-            let l = CALayer()
-            l.contentsGravity = .resizeAspect
-            l.opacity = 0.42
-            l.shadowColor = NSColor.white.cgColor; l.shadowOpacity = 0.5; l.shadowRadius = 2; l.shadowOffset = .zero
-            cloneHost.addSublayer(l)
-            cloneLayers.append(l)
-            let g = CAAnimationGroup()
-            let s = CABasicAnimation(keyPath: "transform.scale"); s.fromValue = 0.4
-            let o = CABasicAnimation(keyPath: "opacity"); o.fromValue = 0
-            g.animations = [s, o]; g.duration = 0.4
-            l.add(g, forKey: "in")
-            _ = slot
-        }
-        // Clones copy the current still (or the idle art while a video plays).
-        let idleArt: CGImage? = pack?.media["idle"]?.still.flatMap { pack?.image($0) }
-        let still: Any? = src ?? idleArt
-        for (i, l) in cloneLayers.enumerated() {
-            let slot = Self.cloneSlots[i]
-            let base = img.isHidden ? CGRect(x: 32, y: 10, width: 60, height: 110) : img.frame
-            let w = base.width * slot.s, h = base.height * slot.s
-            l.frame = CGRect(x: base.midX + slot.x - w / 2, y: Self.design.height - h + slot.y, width: w, height: h)
-            l.contents = still
-        }
-        let extra = frameValue.clones - want
-        moreLabel.opacity = extra > 0 && want > 0 ? 1 : 0
-        moreLabel.string = NSAttributedString(string: "+\(max(extra, 0))", attributes: [.font: NSFont.systemFont(ofSize: 10, weight: .bold),
-                                                                                         .foregroundColor: NSColor(red: 0.43, green: 0.7, blue: 1, alpha: 1)])
-        CATransaction.commit()
     }
 }
 
 extension CharacterRigView {
     /// Debug / self test: one pose as stills, rendered offscreen at 2x on grey.
-    static func snapshot(_ state: CharacterState, pack: CharacterPack, alt: Bool = false, clones: Int = 0) -> CGImage? {
+    static func snapshot(_ state: CharacterState, pack: CharacterPack, alt: Bool = false, clones: [CharacterClone] = []) -> CGImage? {
         let v = CharacterRigView(frame: NSRect(x: 0, y: 0, width: 124, height: 120))
-        v.apply(CharacterFrame(state: state, alt: alt, serial: 1, stills: true, clones: clones), pack: pack)
+        v.apply(CharacterFrame(state: state, alt: alt, serial: 1, stills: true), pack: pack)
         v.layoutSubtreeIfNeeded()
-        guard let layer = v.layer, let ctx = CGContext(data: nil, width: 248, height: 240, bitsPerComponent: 8, bytesPerRow: 0,
+        let (shown, more) = CloneLook.visible(clones, cells: CloneStripView.maxCells)
+        let cellsW = CloneStripView.inset + CGFloat(shown.count + (more > 0 ? 1 : 0)) * CloneCellLayers.size.width
+        let W = 124 + cellsW, H: CGFloat = clones.isEmpty ? 120 : CloneCellLayers.size.height
+        guard let layer = v.layer, let ctx = CGContext(data: nil, width: Int(W * 2), height: Int(H * 2), bitsPerComponent: 8, bytesPerRow: 0,
                                                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        ctx.setFillColor(NSColor(white: 0.3, alpha: 1).cgColor); ctx.fill(CGRect(x: 0, y: 0, width: 248, height: 240))
+        ctx.setFillColor(NSColor(white: 0.3, alpha: 1).cgColor); ctx.fill(CGRect(x: 0, y: 0, width: W * 2, height: H * 2))
         ctx.scaleBy(x: 2, y: 2)
+        ctx.saveGState()
         ctx.translateBy(x: 0, y: 120); ctx.scaleBy(x: 1, y: -1)
         layer.render(in: ctx)
+        ctx.restoreGState()
+        if !clones.isEmpty {
+            let s = CloneStripView(frame: NSRect(x: 0, y: 0, width: cellsW, height: CloneCellLayers.size.height))
+            s.apply(clones, pack: pack, stills: true)
+            s.layoutSubtreeIfNeeded()
+            if let sl = s.layer {
+                ctx.translateBy(x: 124, y: CloneCellLayers.size.height); ctx.scaleBy(x: 1, y: -1)
+                sl.render(in: ctx)
+            }
+        }
         return ctx.makeImage()
     }
 }
@@ -690,8 +640,12 @@ struct CharacterPillSlot: View {
 struct CharacterPillIndicator: View {
     var body: some View {
         let f = CharacterEngine.shared.frame
+        let heads = !f.helpers.isEmpty && !f.gone
         HStack(spacing: 5) {
             switch f.state {
+            case .thinking where heads, .approval where heads:
+                // The clones' faces and count say it already (and the pill has little room).
+                EmptyView()
             case .thinking:
                 Circle().fill(Color(red: 0.43, green: 0.7, blue: 1)).frame(width: 7, height: 7).shadow(color: Color(red: 0.43, green: 0.7, blue: 1), radius: 4)
             case .approval:
@@ -706,10 +660,20 @@ struct CharacterPillIndicator: View {
             default:
                 EmptyView()
             }
-            if f.clones > 0 {
-                Text("x\(f.clones)").font(.system(size: 10, weight: .bold).monospacedDigit()).foregroundStyle(Color(red: 0.43, green: 0.7, blue: 1))
+            if !f.helpers.isEmpty && !f.gone {
+                // Shadow clones: a face per clone and how many are at work (orange while one needs you).
+                let asking = f.helpers.contains { $0.phase == .needsYou }
+                let busy = f.helpers.filter { $0.phase != .done }.count
+                CloneHeads().frame(width: CloneHeadsView.width(f.helpers.count), height: CloneHeadsView.height)
+                if busy > 0 {
+                    Text("x\(busy)").font(.system(size: 11.5, weight: .bold).monospacedDigit())
+                        .foregroundStyle(asking ? Color(red: 1, green: 0.6, blue: 0.3) : .white)
+                        .shadow(color: asking ? Color(red: 1, green: 0.55, blue: 0.2).opacity(0.8) : .clear, radius: 4)
+                        .contentTransition(.numericText())
+                }
             }
         }
         .animation(.easeOut(duration: 0.25), value: f.state)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: f.helpers.count)
     }
 }

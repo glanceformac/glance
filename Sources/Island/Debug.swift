@@ -176,15 +176,38 @@ enum DebugChannel {
             }
         case "tools": ToolsDebug.run(parts.count > 1 ? parts[1] : "")   // MARK: feat/productivity
         case "snapshot": snapshot(name: parts.count > 1 ? parts[1] : "snap")
+        case "snapshot-seq": // snapshot-seq:<name>:<count>:<ms>  a burst of snapshots from inside the app (motion checks)
+            let a = (parts.count > 1 ? parts[1] : "seq").split(separator: ":").map(String.init)
+            let name = a.first ?? "seq"
+            let n = a.count > 1 ? min(Int(a[1]) ?? 10, 60) : 10
+            let ms = a.count > 2 ? max(Int(a[2]) ?? 100, 30) : 100
+            for i in 0..<n {
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(i * ms)) { snapshot(name: "\(name)-\(String(format: "%02d", i))") }
+            }
         case "char": // MARK: wip/character  char:<state> plays a state for 60 s, char:live ends it
             CharacterEngine.shared.preview(parts.count > 1 ? CharacterState(rawValue: parts[1]) : nil, seconds: 60)
         case "char-rig-snap": // char-rig-snap:<state> one rig, stills, rendered offscreen at 2x
             let st = CharacterState(rawValue: parts.count > 1 ? parts[1] : "idle") ?? .idle
-            // Live clone count, so hook-driven shadow clones show up in the snapshot.
-            let n = CharacterEngine.shared.frame.clones
-            if let img = CharacterRigView.snapshot(st, pack: CharacterEngine.shared.pack ?? MochiArt.pack, clones: n) {
+            // Live shadow clones: the strip is drawn to the right of the rig (stills).
+            let pack = CharacterEngine.shared.pack ?? MochiArt.pack
+            let helpers = CharacterEngine.shared.frame.helpers
+            if let img = CharacterRigView.snapshot(st, pack: pack, clones: helpers) {
                 try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
-                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue)\(n > 0 ? "-x\(n)" : "").png"))
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue)\(helpers.isEmpty ? "" : "-x\(helpers.count)").png"))
+            }
+        case "clones-film": // clones-film:<spawn|wave|done|poof> one clone of the current pack through a scenario, 0 to 1.8 s
+            let sc = parts.count > 1 ? parts[1] : "spawn"
+            let pack = CharacterEngine.shared.pack ?? MochiArt.pack
+            if let img = CloneStripView.film(sc, pack: pack, times: stride(from: 0.0, through: 1.8, by: 0.15).map { $0 }) {
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("film-\(pack.id.replacingOccurrences(of: ":", with: "-"))-\(sc).png"))
+            }
+        case "clones-demo": CharacterEngine.shared.playClonesDemo()   // the Settings "Play Shadow Clones" demo
+        case "char-tb-film": // the Touch Bar strip with made-up clones, 6 s in real time (blocks while filming)
+            let pack = CharacterEngine.shared.pack ?? MochiArt.pack
+            if let img = CharacterStripView.film(pack: pack) {
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("tb-film-\(pack.id.replacingOccurrences(of: ":", with: "-")).png"))
             }
         case "char-tb-snap": // the character Touch Bar strip, rendered offscreen
             let v = CharacterStripView(frame: NSRect(x: 0, y: 0, width: 1085, height: 30))
