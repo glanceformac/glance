@@ -1032,6 +1032,13 @@ extension CloneStripView {
     static func film(_ scenario: String, pack: CharacterPack, times: [Double]) -> CGImage? {
         let w = Self.inset + CloneCellLayers.size.width * 2, h = CloneCellLayers.size.height
         let v = CloneStripView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        // A borderless window far off every screen, so Core Animation commits the tree and
+        // evaluates its animations (an unattached layer tree never animates).
+        let win = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: w, height: h), styleMask: .borderless, backing: .buffered, defer: false)
+        win.isReleasedWhenClosed = false
+        win.contentView = v
+        win.orderFrontRegardless()
+        defer { win.orderOut(nil) }
         v.layoutSubtreeIfNeeded()
         let a = CharacterClone(key: "s/a", label: "Explore", phase: .working, ordinal: 1)
         var b = a
@@ -1054,6 +1061,7 @@ extension CloneStripView {
         for (i, t) in times.enumerated() {
             host.timeOffset = t0 + t
             CATransaction.flush()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
             guard let layer = v.layer else { continue }
             ctx.saveGState()
             ctx.scaleBy(x: 2, y: 2)
