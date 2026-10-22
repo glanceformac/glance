@@ -13,7 +13,7 @@ enum MochiArt {
             "music": m("music", 96), "movie": m("poof", 84, bottom: 8), "thinking": m("thinking", 96),
             "approval": m("approval", 96), "finished": m("finished", 96),
         ],
-        compact: [:])
+        compact: [:], cloneEffect: .flour)
 
     private static func m(_ key: String, _ h: CGFloat, bottom: CGFloat = 0) -> CharacterMedia {
         var x = CharacterMedia()

@@ -295,13 +295,15 @@ final class IslandModel {
             permissions.append(r)
         }
         PermissionHotKeys.update(active: true)
+        if !r.agentID.isEmpty { CharacterEngine.shared.tick() } // MARK: wip/character (its clone waves)
     }
 
     func removePermission(id: UUID) {
-        guard permissions.contains(where: { $0.id == id }) else { return }
+        guard let gone = permissions.first(where: { $0.id == id }) else { return }
         withAnimation(Self.closeSpring) {
             permissions.removeAll { $0.id == id }
         }
+        if !gone.agentID.isEmpty { CharacterEngine.shared.tick() } // MARK: wip/character
         if permissions.isEmpty {
             PermissionHotKeys.update(active: false)
             showNextPeekIfIdle()
