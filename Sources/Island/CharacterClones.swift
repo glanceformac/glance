@@ -1087,3 +1087,51 @@ extension CloneStripView {
         return ctx.makeImage()
     }
 }
+
+extension CharacterStripView {
+    /// Debug: the Touch Bar strip with made-up clones, filmed in real time (frames every
+    /// `step` seconds, stacked top to bottom). Phases: four start running; at 1.5 s the second
+    /// needs you; at 3 s the first is done; at 4.5 s the first leaves. The strip sits in a
+    /// borderless window far off every screen.
+    static func film(pack: CharacterPack, seconds: Double = 6, step: Double = 0.25) -> CGImage? {
+        let size = NSSize(width: 1085, height: 30)
+        let v = CharacterStripView(frame: NSRect(origin: .zero, size: size))
+        let win = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: size.width, height: size.height), styleMask: .borderless, backing: .buffered, defer: false)
+        win.isReleasedWhenClosed = false
+        win.contentView = v
+        win.orderFrontRegardless()
+        defer { win.orderOut(nil) }
+        var clones = [CharacterClone(key: "s/1", label: "Explore", phase: .working, ordinal: 1),
+                      CharacterClone(key: "s/2", label: "Plan", phase: .working, ordinal: 2),
+                      CharacterClone(key: "s/3", label: "Code reviewer", phase: .working, ordinal: 3),
+                      CharacterClone(key: "s/4", label: "Helper", phase: .working, ordinal: 4)]
+        func show() {
+            var c = CharacterTouchBar.Content()
+            c.frame = CharacterFrame(state: .thinking, serial: 1, helpers: clones)
+            c.text = NSAttributedString(string: "Claude Code   \(clones.filter { $0.phase != .done }.count) at work",
+                                        attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.white])
+            v.apply(c)
+        }
+        _ = pack
+        show()
+        let n = Int(seconds / step)
+        let scale: CGFloat = 1
+        guard let ctx = CGContext(data: nil, width: Int(size.width * scale), height: Int(size.height * scale) * n, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        for i in 0..<n {
+            let t = Double(i) * step
+            if abs(t - 1.5) < step / 2 { clones[1].phase = .needsYou; show() }
+            if abs(t - 3) < step / 2 { clones[0].phase = .done; show() }
+            if abs(t - 4.5) < step / 2 { clones.removeFirst(); show() }
+            RunLoop.current.run(until: Date().addingTimeInterval(step))
+            CATransaction.flush()
+            guard let layer = v.layer else { continue }
+            ctx.saveGState()
+            ctx.translateBy(x: 0, y: CGFloat(n - 1 - i) * size.height * scale)
+            ctx.scaleBy(x: scale, y: scale)
+            (layer.presentation() ?? layer).render(in: ctx)
+            ctx.restoreGState()
+        }
+        return ctx.makeImage()
+    }
+}
