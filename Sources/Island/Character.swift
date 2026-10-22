@@ -461,6 +461,48 @@ final class CharacterEngine {
     /// Clones ("session/agent_id") whose subagent is waiting on a permission request.
     private func askingClones() -> Set<String> {
         Set(IslandModel.shared.permissions.compactMap { p in p.agentID.isEmpty ? nil : (p.session.isEmpty ? "-" : p.session) + "/" + p.agentID })
+            .union(demoAsking)
+    }
+
+    // MARK: Shadow clones demo (Settings)
+
+    @ObservationIgnored private var demoAsking: Set<String> = []
+    @ObservationIgnored private var demoTask: Task<Void, Never>?
+    /// The Shadow Clones demo is playing on the notch.
+    private(set) var clonesDemo = false
+
+    /// Settings: plays the Shadow Clones on the real notch (island, pill, Touch Bar) with made-up
+    /// agents: four arrive, one needs you and is answered, then they finish and leave.
+    func playClonesDemo() {
+        demoTask?.cancel()
+        let s = "glance-demo"
+        let ev: (String, String?, String) -> Void = { [weak self] e, id, type in
+            var m: [String: Any] = ["agent_type": type]
+            if let id { m["agent_id"] = id }
+            self?.clones.handle(event: e, session: s, msg: m, now: Date())
+        }
+        clonesDemo = true
+        demoTask = Task { [weak self] in
+            guard let self else { return }
+            let steps: [(Double, () -> Void)] = [
+                (0, { ev("SubagentStart", "d1", "Explore"); ev("SubagentStart", "d2", "Plan") }),
+                (0.7, { ev("SubagentStart", "d3", "my-plugin:code-reviewer") }),
+                (1.5, { ev("SubagentStart", "d4", "general-purpose") }),
+                (3, { self.demoAsking = [s + "/d2"] }),
+                (6, { self.demoAsking = [] }),
+                (7, { ev("SubagentStop", "d1", "Explore") }),
+                (9, { ev("SubagentStop", "d3", "") }),
+                (10.5, { ev("Stop", nil, "") }),
+            ]
+            var at = 0.0
+            for (t, step) in steps {
+                try? await Task.sleep(for: .seconds(t - at)); at = t
+                if Task.isCancelled { break }
+                step(); self.tick()
+            }
+            if !Task.isCancelled { try? await Task.sleep(for: .seconds(CloneTracker.doneHold + 0.1)) }
+            ev("SessionEnd", nil, ""); self.demoAsking = []; self.clonesDemo = false; self.tick()
+        }
     }
 
     static let videoApps: Set<String> = ["com.apple.QuickTimePlayerX", "com.apple.TV", "org.videolan.vlc", "com.colliderli.iina",
