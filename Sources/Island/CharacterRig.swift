@@ -577,8 +577,9 @@ final class CharacterRigView: NSView {
     }
 
     // MARK: Shadow clones (running Claude Code subagents)
-    // TODO(phase 2): this is a first, simple version (translucent copies behind the main pose, +N).
-    // The full Shadow Clones design (one cell per agent, per-clone states, Touch Bar runners) is not built yet.
+    // Basic version: translucent copies behind the main pose, up to five, then +N. The count comes
+    // from CloneTracker (one per running subagent). Still to build from the approved design: one
+    // cell per agent with its label and state, per-clone poses, and Touch Bar runners.
 
     private static let cloneSlots: [(x: CGFloat, y: CGFloat, s: CGFloat)] = [(-34, 0, 0.78), (34, 0, 0.78), (-50, -6, 0.62), (50, -6, 0.62), (0, -14, 0.58)]
 
@@ -631,9 +632,9 @@ final class CharacterRigView: NSView {
 
 extension CharacterRigView {
     /// Debug / self test: one pose as stills, rendered offscreen at 2x on grey.
-    static func snapshot(_ state: CharacterState, pack: CharacterPack, alt: Bool = false) -> CGImage? {
+    static func snapshot(_ state: CharacterState, pack: CharacterPack, alt: Bool = false, clones: Int = 0) -> CGImage? {
         let v = CharacterRigView(frame: NSRect(x: 0, y: 0, width: 124, height: 120))
-        v.apply(CharacterFrame(state: state, alt: alt, serial: 1, stills: true), pack: pack)
+        v.apply(CharacterFrame(state: state, alt: alt, serial: 1, stills: true, clones: clones), pack: pack)
         v.layoutSubtreeIfNeeded()
         guard let layer = v.layer, let ctx = CGContext(data: nil, width: 248, height: 240, bitsPerComponent: 8, bytesPerRow: 0,
                                                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }

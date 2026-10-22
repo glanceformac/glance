@@ -288,6 +288,9 @@ extension ClaudeServer {
         let session = msg["session_id"] as? String ?? ""
         CharacterEngine.shared.claude(event: event, session: session, msg: msg) // MARK: wip/character
 
+        // A Stop from inside a subagent is not the end of the turn (no Done peek).
+        if event == "Stop", !(msg["agent_id"] as? String ?? "").isEmpty { c.close(); return }
+
         switch event {
         case "PermissionRequest":
             let tool = msg["tool_name"] as? String ?? "Tool"

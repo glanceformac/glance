@@ -285,7 +285,7 @@ struct SettingsView: View {
                 Section("Claude Code") {
                     Toggle("Show Claude Code requests and Done peeks", isOn: $settings.prefs.claudeIntegration)
                     Text("Socket: \(ClaudeServer.socketPath)").font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                    Text("Glance never edits your Claude Code settings. To connect it, add the hooks from the setup guide to ~/.claude/settings.json. The hook helper is \(Bundle.main.bundlePath)/Contents/MacOS/glance-hook.")
+                    Text("Glance never edits your Claude Code settings. To connect it (approval card, character states and Shadow Clones), add the hooks from the setup guide to ~/.claude/settings.json. The hook helper is \(Bundle.main.bundlePath)/Contents/MacOS/glance-hook.")
                         .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     Link("Claude Code hooks setup guide", destination: URL(string: "https://github.com/glanceformac/glance/blob/main/INSTALL-HOOKS.md")!)
                         .font(.caption)

@@ -1,9 +1,26 @@
 # Claude Code hooks for Glance
 
-Nothing here has been installed. Glance never edits your Claude Code settings. To turn the
-integration on, add the JSON below to `~/.claude/settings.json` yourself (or ask Claude to,
-once you have reviewed it). If the file already has a `"hooks"` key, merge these seven
-events into it instead of adding a second `"hooks"` key.
+Glance never edits your Claude Code settings. You connect it by adding a few hook entries to
+`~/.claude/settings.json` yourself. It takes about two minutes, and you can remove them any time.
+
+What you get: the "Claude needs your OK" approval card (Allow / Deny from the island or the
+Touch Bar), the Done peek, the notch character reacting to Claude, and Shadow Clones for
+Claude's helper agents.
+
+## Set it up
+
+1. Make a copy of your settings first:
+   `cp ~/.claude/settings.json ~/.claude/settings.json.before-glance`
+   (If the file does not exist yet, create it with `{}` in it.)
+2. Open `~/.claude/settings.json` in a text editor.
+3. If the file has **no** `"hooks"` key: add the `"hooks"` block below as a new top-level key
+   (mind the comma after the previous key).
+   If it **already has** a `"hooks"` key: for each event below, add Glance's entry to that
+   event's list next to your own entries, or add the event if it is not there. Do not add a
+   second `"hooks"` key, and do not change your existing entries.
+4. Check the file is still valid JSON:
+   `python3 -m json.tool ~/.claude/settings.json > /dev/null && echo OK`
+5. Restart any running Claude Code sessions so they load the hooks.
 
 The format follows the current hooks reference: https://code.claude.com/docs/en/hooks
 
@@ -91,6 +108,50 @@ The format follows the current hooks reference: https://code.claude.com/docs/en/
           }
         ]
       }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Glance.app/Contents/MacOS/glance-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Glance.app/Contents/MacOS/glance-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Glance.app/Contents/MacOS/glance-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Glance.app/Contents/MacOS/glance-hook",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
@@ -108,11 +169,20 @@ These paths point at the installed copy in /Applications (from the installer, Ho
 | `Notification` (`idle_prompt`) | A short peek when Claude is waiting for your input | Optional |
 | `PostToolUse` (Bash, Edit, Write…) | Counts files changed (shown in the Done animation). A successful `git commit` plays the passing-move COMMIT animation; `git push`, `vercel` / `vercel deploy` and `gh pr create` play the floodlight PUSHED / DEPLOYED / PR OPENED animation | Optional (football celebrations) |
 | `PostToolUseFailure` (Bash) | If one of those commands fails: the red-card animation with the first line of the error | Optional |
+| `SubagentStart` / `SubagentStop` | Shadow clones: while Claude Code runs subagents, the notch character shows one small clone per running subagent (up to five, then "+N"), in the open island, the closed pill (with an "x3" count) and the Touch Bar ("3 helpers running"). Each clone goes when its subagent stops. Turn it off in Settings › Character | Optional (needs the character) |
+| `StopFailure`, `SessionEnd` | Nothing visible. They end the "working" state and clear any clones when a turn fails or a session closes | Optional |
 | `PreToolUse` (Bash) | Long-command islands: when a Bash call runs longer than the threshold (Settings › Developer, default 30 s), a small running capsule with the command and a clock appears inside the pill; when it ends (`PostToolUse` / `PostToolUseFailure`) a peek shows how long it took and its exit status | Optional |
 
 For these events the helper strips file contents and tool output before sending; only the
 command line, file path and the first 800 characters of an error reach Glance. For a Bash
 `PostToolUse` it also passes one flag, whether the call was interrupted (no output text).
+
+Shadow clones are matched by `agent_id`. A main-session `Stop` clears the session's clones,
+except for background subagents still listed as running in its `background_tasks`; the idle
+prompt notification, `StopFailure` and `SessionEnd` clear them too. A clone whose subagent has
+sent nothing for 20 minutes is removed, in case its stop event was missed. For `Stop` and
+`SubagentStop` the helper passes only the type and status of each background task (no
+descriptions, commands or scheduled prompts) and drops the subagent's final message.
 
 `PreToolUse` never blocks or changes anything: the helper sends the event and exits at once with
 no output (so Claude Code's own permission rules decide as usual). For tools other than Bash it
@@ -145,13 +215,28 @@ checks), so an isolated test instance can be driven without touching the real on
 - The `timeout` of 75 s is longer than the helper's own 58 s deadline, so Claude Code never
   has to kill it.
 
-## Testing it without Claude Code
+## Check it works
+
+With Glance running, paste this in a terminal. The approval card should appear in the island;
+click Allow or Deny and the decision prints in the terminal.
 
 ```sh
 H=/Applications/Glance.app/Contents/MacOS/glance-hook
 echo '{"hook_event_name":"PermissionRequest","cwd":"'"$PWD"'","tool_name":"Bash","tool_input":{"command":"echo hello"}}' | $H
-# Glance shows the card; click Allow or Deny and the JSON decision prints here.
 ```
+
+Then, in Claude Code, ask for something that needs permission (for example a shell command):
+the same card appears. Ask Claude to use a helper agent and a small clone shows beside the
+character while it works.
+
+## Remove it
+
+Delete every entry whose `"command"` ends in `glance-hook` from `~/.claude/settings.json`,
+and any event list that is left empty. Or put your copy back:
+`cp ~/.claude/settings.json.before-glance ~/.claude/settings.json`. Restart Claude Code sessions.
+If Glance is not running, the hooks do nothing and Claude Code asks in the terminal as usual.
+
+## More tests without Claude Code
 
 Long-command test (needs the `PreToolUse` hook):
 

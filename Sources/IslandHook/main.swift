@@ -44,6 +44,13 @@ if event != "PermissionRequest" {
     if let m = responseMeta { obj["tool_response_meta"] = m } // MARK: feat/claude-dev
     obj.removeValue(forKey: "last_assistant_message")
     if let e = obj["error"] as? String { obj["error"] = String(e.prefix(800)) }
+    // Stop / SubagentStop: Glance only counts the background subagents still running (shadow
+    // clones), so descriptions, commands and scheduled prompts are dropped.
+    if let tasks = obj["background_tasks"] as? [[String: Any]] {
+        obj["background_tasks"] = tasks.prefix(50).map { $0.filter { ["type", "status"].contains($0.key) } }
+    }
+    obj.removeValue(forKey: "session_crons")
+    obj.removeValue(forKey: "agent_transcript_path")
 }
 guard var line = try? JSONSerialization.data(withJSONObject: obj) else { noDecision() }
 line.append(0x0A)

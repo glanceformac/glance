@@ -307,7 +307,7 @@ final class CharacterEngine {
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var sessions: [String: Date] = [:]
-    @ObservationIgnored private var agents: [String: Date] = [:]
+    @ObservationIgnored private var clones = CloneTracker()
     @ObservationIgnored private var finishedUntil = Date.distantPast
     @ObservationIgnored private var shelfUntil = Date.distantPast
     @ObservationIgnored private var goneTask: Task<Void, Never>?
@@ -363,29 +363,27 @@ final class CharacterEngine {
     func claude(event: String, session: String, msg: [String: Any]) {
         let key = session.isEmpty ? "-" : session
         let now = Date()
+        let clonesBefore = clones.count
+        clones.handle(event: event, session: key, msg: msg, now: now)
         switch event {
         case "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "PreCompact":
             sessions[key] = now
         case "Stop":
+            // A Stop that carries agent_id is a subagent finishing, not the turn.
+            guard (msg["agent_id"] as? String ?? "").isEmpty else { break }
             sessions[key] = nil
-            agents = agents.filter { !$0.key.hasPrefix(key + "/") }
             finishedUntil = now.addingTimeInterval(3.2)
         case "StopFailure", "SessionEnd":
             sessions[key] = nil
-            agents = agents.filter { !$0.key.hasPrefix(key + "/") }
         case "Notification":
             // Waiting for the user's next prompt: no longer thinking.
             if msg["notification_type"] as? String == "idle_prompt" { sessions[key] = nil }
         case "SubagentStart":
             sessions[key] = now
-            let agent = msg["agent_id"] as? String ?? UUID().uuidString
-            agents[key + "/" + agent] = now
         case "SubagentStop":
-            let agent = msg["agent_id"] as? String
-            if let agent { agents[key + "/" + agent] = nil }
-            else if let k = agents.filter({ $0.key.hasPrefix(key + "/") }).min(by: { $0.value < $1.value })?.key { agents[k] = nil }
+            break
         default:
-            return
+            if clones.count == clonesBefore { return }
         }
         tick()
     }
@@ -409,7 +407,7 @@ final class CharacterEngine {
     func signals(now: Date = Date()) -> CharacterSignals {
         // Sessions that went quiet for 10 minutes are over (a crashed Claude Code must not keep him busy).
         sessions = sessions.filter { now.timeIntervalSince($0.value) < 600 }
-        agents = agents.filter { now.timeIntervalSince($0.value) < 1800 }
+        clones.expire(now: now)
         let model = IslandModel.shared
         // The Done celebration plays in the pill first; the thumbs-up follows it.
         if finishedUntil > now, model.celebration != nil { finishedUntil = max(finishedUntil, now.addingTimeInterval(2.5)) }
@@ -480,7 +478,7 @@ final class CharacterEngine {
         let next = override ?? real
         var f = frame
         f.stills = stills
-        f.clones = prefs.clones ? min(agents.count, 99) : 0
+        f.clones = prefs.clones ? min(clones.count, 99) : 0
         if next != f.state || force {
             f.state = next
             f.serial &+= 1
@@ -509,6 +507,55 @@ final class CharacterEngine {
     }
 }
 
+// MARK: - Shadow clones
+
+/// Running Claude Code subagents, one entry per agent per session (the shadow clones). Fed by the
+/// hook events (https://code.claude.com/docs/en/hooks): SubagentStart and SubagentStop carry
+/// `agent_id`; tool events from inside a subagent carry it too and count as a sign of life.
+struct CloneTracker {
+    struct Agent: Equatable { var session: String; var started: Date; var seen: Date }
+    /// No word from an agent for this long: its SubagentStop was missed (Claude Code quit, hook
+    /// timed out), so the clone goes. Long Read/Grep runs send no hooked events, hence the margin.
+    static let quietExpiry: TimeInterval = 20 * 60
+    private(set) var agents: [String: Agent] = [:]
+    var count: Int { agents.count }
+
+    mutating func handle(event: String, session: String, msg: [String: Any], now: Date) {
+        let id = (msg["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        switch event {
+        case "SubagentStart":
+            // Also fires when a subagent is resumed: same id, same clone.
+            let key = session + "/" + (id ?? UUID().uuidString)
+            agents[key] = Agent(session: session, started: agents[key]?.started ?? now, seen: now)
+        case "SubagentStop":
+            // Claude Code's own internal agents (prompt suggestions, /btw) stop without a start:
+            // an unknown id is ignored. Without any id, the oldest clone of the session goes.
+            if let id { agents[session + "/" + id] = nil }
+            else if let k = agents.filter({ $0.value.session == session }).min(by: { $0.value.started < $1.value.started })?.key { agents[k] = nil }
+        case "Stop":
+            if let id { agents[session + "/" + id] = nil; return }
+            // The main turn ended. Background subagents may still run (listed in background_tasks):
+            // keep that many of the most recently active clones, clear the rest.
+            let running = (msg["background_tasks"] as? [[String: Any]] ?? []).filter {
+                $0["type"] as? String == "subagent" && !["completed", "failed", "killed", "stopped", "done"].contains($0["status"] as? String ?? "")
+            }.count
+            let mine = agents.filter { $0.value.session == session }.sorted { $0.value.seen > $1.value.seen }
+            for (k, _) in mine.dropFirst(running) { agents[k] = nil }
+        case "StopFailure", "SessionEnd":
+            agents = agents.filter { $0.value.session != session }
+        case "Notification":
+            // idle_prompt only fires once no background agent is still running.
+            if msg["notification_type"] as? String == "idle_prompt" { agents = agents.filter { $0.value.session != session } }
+        default:
+            if let id, agents[session + "/" + id] != nil { agents[session + "/" + id]?.seen = now }
+        }
+    }
+
+    mutating func expire(now: Date) {
+        agents = agents.filter { now.timeIntervalSince($0.value.seen) < Self.quietExpiry }
+    }
+}
+
 // MARK: - Self test (`Glance --character-selftest`: prints results and exits, shows nothing)
 
 @MainActor
@@ -527,6 +574,36 @@ enum CharacterSelfTest {
         s.finished = true; check("finished beats thinking", s.resolved == .finished)
         s.approval = true; check("approval beats everything", s.resolved == .approval)
         check("priority covers every state", Set(CharacterState.priority) == Set(CharacterState.allCases))
+        // Shadow clones: hook event sequences as Claude Code sends them.
+        var ct = CloneTracker(); let t0 = Date()
+        for i in 1...3 { ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "a\(i)", "agent_type": "Explore"], now: t0) }
+        check("clones: one per running subagent", ct.count == 3)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "a1"], now: t0)
+        check("clones: a resumed subagent is not a new clone", ct.count == 3)
+        ct.handle(event: "SubagentStart", session: "s2", msg: ["agent_id": "a1"], now: t0)
+        check("clones: same agent id in another session counts", ct.count == 4)
+        ct.handle(event: "SubagentStop", session: "s1", msg: ["agent_id": "zz", "agent_type": ""], now: t0)
+        check("clones: stop of an unknown (internal) agent ignored", ct.count == 4)
+        ct.handle(event: "SubagentStop", session: "s1", msg: ["agent_id": "a2"], now: t0)
+        check("clones: SubagentStop clears its clone", ct.count == 3 && ct.agents["s1/a2"] == nil)
+        ct.handle(event: "PostToolUse", session: "s1", msg: ["agent_id": "a3", "tool_name": "Bash"], now: t0.addingTimeInterval(1000))
+        ct.expire(now: t0.addingTimeInterval(CloneTracker.quietExpiry + 1))
+        check("clones: quiet agents expire, active ones stay", ct.count == 1 && ct.agents["s1/a3"] != nil)
+        ct = CloneTracker()
+        for i in 1...3 { ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "b\(i)"], now: t0.addingTimeInterval(Double(i))) }
+        ct.handle(event: "Stop", session: "s1", msg: ["background_tasks": [["type": "subagent", "status": "running"], ["type": "shell", "status": "running"]]], now: t0)
+        check("clones: Stop keeps background subagents still running", ct.count == 1 && ct.agents["s1/b3"] != nil)
+        ct.handle(event: "Stop", session: "s1", msg: ["background_tasks": []], now: t0)
+        check("clones: main Stop clears the rest", ct.count == 0)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "c1"], now: t0)
+        ct.handle(event: "Stop", session: "s1", msg: ["agent_id": "c1"], now: t0)
+        check("clones: a Stop with agent_id clears only that clone", ct.count == 0)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "d1"], now: t0)
+        ct.handle(event: "SubagentStart", session: "s2", msg: ["agent_id": "d2"], now: t0)
+        ct.handle(event: "SessionEnd", session: "s1", msg: [:], now: t0)
+        check("clones: SessionEnd clears only that session", ct.count == 1 && ct.agents["s2/d2"] != nil)
+        ct.handle(event: "Notification", session: "s2", msg: ["notification_type": "idle_prompt"], now: t0)
+        check("clones: idle prompt clears the session", ct.count == 0)
         // Manifest parsing: path escapes and missing files are refused, idle is required.
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("glance-pack-test-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tmp.appendingPathComponent("art"), withIntermediateDirectories: true)
