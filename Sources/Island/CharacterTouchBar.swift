@@ -166,7 +166,8 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
         case .movie:
             c.wave = .centre
         case .thinking:
-            c.text = t([("Claude Code:", orange), (" working on it", white)])
+            let n = e.frame.clones
+            c.text = t([("Claude Code:", orange), (" working on it", white), (n > 0 ? "   \(n) helper\(n == 1 ? "" : "s") running" : "", dim)])
             c.shimmer = !e.frame.stills
         case .approval:
             let summary = IslandModel.shared.permissions.first.map { String($0.summary.split(separator: "\n").first ?? "").prefix(70) } ?? ""
