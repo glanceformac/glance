@@ -171,11 +171,12 @@ enum DebugChannel {
             CharacterEngine.shared.preview(parts.count > 1 ? CharacterState(rawValue: parts[1]) : nil, seconds: 60)
         case "char-rig-snap": // char-rig-snap:<state> one rig, stills, rendered offscreen at 2x
             let st = CharacterState(rawValue: parts.count > 1 ? parts[1] : "idle") ?? .idle
-            // Live clone count, so hook-driven shadow clones show up in the snapshot.
-            let n = CharacterEngine.shared.frame.clones
-            if let img = CharacterRigView.snapshot(st, pack: CharacterEngine.shared.pack ?? MochiArt.pack, clones: n) {
+            // Live shadow clones: the strip is drawn to the right of the rig (stills).
+            let pack = CharacterEngine.shared.pack ?? MochiArt.pack
+            let helpers = CharacterEngine.shared.frame.helpers
+            if let img = CharacterRigView.snapshot(st, pack: pack, clones: helpers) {
                 try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
-                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue)\(n > 0 ? "-x\(n)" : "").png"))
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue)\(helpers.isEmpty ? "" : "-x\(helpers.count)").png"))
             }
         case "char-tb-snap": // the character Touch Bar strip, rendered offscreen
             let v = CharacterStripView(frame: NSRect(x: 0, y: 0, width: 1085, height: 30))
