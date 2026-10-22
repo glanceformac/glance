@@ -303,7 +303,8 @@ final class KeepAwakeStatusItem: NSObject, NSMenuDelegate {
     private var item: NSStatusItem?
 
     func update() {
-        let want = AppSettings.shared.prefs.keepAwakeMenuBar
+        // Isolated test instances never put an item in the real menu bar.
+        let want = AppSettings.shared.prefs.keepAwakeMenuBar && !Env.isolated
         if want, item == nil {
             let i = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             let menu = NSMenu()
