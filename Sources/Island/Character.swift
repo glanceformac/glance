@@ -335,10 +335,10 @@ final class CharacterEngine {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     /// Screens asleep: rigs pause their videos and animations.
     private(set) var screensAsleep = false
-    /// Cells the island's clone strip needs (0: no strip). Lags a moment behind the last clone
-    /// leaving, so its poof can play. Kept apart from `frame` so the island only re-lays out
-    /// when this changes.
-    private(set) var cloneCells = 0
+    /// Shadow clones take over Home's cards area. Goes false a moment after the last clone
+    /// leaves, so its poof can play before the cards come back. Kept apart from `frame` so the
+    /// island only re-lays out when this flips.
+    private(set) var clonesShowing = false
     @ObservationIgnored private var cloneCellsTask: Task<Void, Never>?
     /// Last thing shown on the Shelf (for the Touch Bar line).
     private(set) var lastShelfName = ""
@@ -544,21 +544,20 @@ final class CharacterEngine {
     }
 
     private func updateCloneCells() {
-        let want = frame.gone ? 0 : min(frame.helpers.count, CloneStripView.maxCells)
-        if want >= cloneCells {
+        let want = !frame.gone && !frame.helpers.isEmpty
+        if want {
             cloneCellsTask?.cancel(); cloneCellsTask = nil
-            if want != cloneCells { withAnimation(IslandModel.openSpring) { cloneCells = want } }
-        } else if cloneCellsTask == nil {
-            // Fewer cells: wait for the poof to play (longer for the last one: the strip goes).
+            if !clonesShowing { withAnimation(IslandModel.openSpring) { clonesShowing = true } }
+        } else if clonesShowing && cloneCellsTask == nil {
             cloneCellsTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(want == 0 ? 1.1 : CloneStripView.closeUpDelay))
+                try? await Task.sleep(for: .seconds(1.1))
                 guard !Task.isCancelled, let self else { return }
                 self.cloneCellsTask = nil
-                let now = self.frame.gone ? 0 : min(self.frame.helpers.count, CloneStripView.maxCells)
-                if now < self.cloneCells { withAnimation(now == 0 ? IslandModel.closeSpring : IslandModel.openSpring) { self.cloneCells = now } }
+                if self.frame.gone || self.frame.helpers.isEmpty { withAnimation(.easeInOut(duration: 0.45)) { self.clonesShowing = false } }
             }
         }
     }
+
 }
 
 // MARK: - Shadow clones

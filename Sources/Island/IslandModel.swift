@@ -113,7 +113,7 @@ final class IslandModel {
         if expanded {
             // MARK: feat/controls: panel width / max height settings
             if page == .clipboard || page == .today || page == .prompter || page == .tools || page == .system || page == .dev { return IslandGeometry.expanded(IslandMetrics.expandedTall) }
-            if page == .widgets && (homeCardCount >= 5 || CharacterEngine.shared.cloneCells > 0) { return IslandGeometry.expanded(IslandMetrics.expandedWide) }
+            if page == .widgets && homeCardCount >= 5 { return IslandGeometry.expanded(IslandMetrics.expandedWide) }
             return IslandGeometry.expanded(IslandMetrics.expanded)
         }
         return closedSize

@@ -8,8 +8,8 @@ import SwiftUI
 // with no clones has no layers and no animations, and every view freezes its layers while its
 // window is hidden or covered. Stills only (Reduce Motion, Low Power Mode): poses change, nothing moves.
 //
-// Places: the island (a cell per clone with its label and status, beside the character on
-// Home), the closed pill (a small face per clone and the count) and the Touch Bar (clones run
+// Places: the island (while clones run they take over Home's cards area, a cell per clone
+// with its label and status, beside the character), the closed pill (a small face per clone and the count) and the Touch Bar (clones run
 // along the strip; one that needs you stops and waves).
 
 enum CloneLook {
@@ -480,9 +480,15 @@ final class CloneMoreLayers {
 
 // MARK: - Island strip
 
-/// The clones beside the character on Home: one cell each, oldest first, then "+N".
+/// The clones in place of Home's cards: one cell each, oldest first, then "+N" when they no
+/// longer fit.
 final class CloneStripView: NSView {
-    static let maxCells = 4
+    /// Cells that fit the open island's cards area (640 pt island, character column aside).
+    static let maxCells = 7
+    /// Cells that fit the view now (all of maxCells until it has a width).
+    private var cellsThatFit: Int {
+        bounds.width > 1 ? max(1, min(Self.maxCells, Int(bounds.width / CloneCellLayers.size.width))) : Self.maxCells
+    }
     private let host = CALayer()
     private var cells: [String: CloneCellLayers] = [:]
     private var more: CloneMoreLayers?
@@ -492,6 +498,7 @@ final class CloneStripView: NSView {
     private var holes: [String: Int] = [:]
     private var last: (all: [CharacterClone], pack: CharacterPack, stills: Bool)?
     static let closeUpDelay: TimeInterval = 0.42
+    private var laidOutWidth: CGFloat = -1
     private var running = false
     private var occlusionObs: NSObjectProtocol?
     var externallyPaused = false { didSet { updateRunning() } }
@@ -514,12 +521,17 @@ final class CloneStripView: NSView {
         // Cells are 132 pt tall, bottom-aligned in the view.
         host.frame = CGRect(x: 0, y: bounds.height - CloneCellLayers.size.height, width: bounds.width, height: CloneCellLayers.size.height)
         CATransaction.commit()
+        // A new width can fit more or fewer cells.
+        if bounds.width != laidOutWidth, let l = last {
+            laidOutWidth = bounds.width
+            apply(l.all, pack: l.pack, stills: l.stills)
+        }
     }
 
     func apply(_ all: [CharacterClone], pack: CharacterPack?, stills: Bool) {
         guard let pack else { clearAll(); updateRunning(); return }
         last = (all, pack, stills)
-        let (shown, extra) = CloneLook.visible(all, cells: Self.maxCells)
+        let (shown, extra) = CloneLook.visible(all, cells: cellsThatFit)
         let allKeys = Set(all.map(\.key)), shownKeys = Set(shown.map(\.key))
         let effect = pack.cloneEffect
         // Gone for good: poof, and the others close up only once the puff has covered it.
@@ -559,7 +571,8 @@ final class CloneStripView: NSView {
             }
             cell.configure(c, pack: pack, stills: stills)
             move(cell.root, to: slotX[c.key] ?? 0, animated: !isNew && !stills)
-            // A newcomer beyond the strip's current width waits for the island to make room.
+            // A newcomer beyond the strip's current width (or while the strip is still appearing
+            // in place of the cards) waits a moment for the room to be there.
             if isNew { cell.spawn(effect: effect, stills: stills, delay: (slotX[c.key] ?? 0) + CloneCellLayers.size.width > bounds.width + 1 ? 0.4 : 0) }
         }
         x = CGFloat(slots.count) * CloneCellLayers.size.width
