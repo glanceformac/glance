@@ -97,6 +97,8 @@ struct Prefs: Codable, Equatable {
     var clipboardIgnoredApps: [String] = ClipboardFilter.passwordManagers
     /// Suggested apps the user said no to (not suggested again).
     var clipboardDismissedSuggestions: [String] = []
+    /// Files copied in Finder are not kept (text copied in Finder, such as a file name, still is).
+    var clipboardIgnoreFinderFiles = false
     /// Shelf: an item dragged out (and dropped somewhere) leaves the Shelf, unless it is pinned.
     var shelfRemoveAfterDrag = true
     // Look
@@ -235,6 +237,7 @@ struct Prefs: Codable, Equatable {
         pasteAfterCopy = v(.pasteAfterCopy, d.pasteAfterCopy)
         clipboardIgnoredApps = v(.clipboardIgnoredApps, d.clipboardIgnoredApps)
         clipboardDismissedSuggestions = v(.clipboardDismissedSuggestions, d.clipboardDismissedSuggestions)
+        clipboardIgnoreFinderFiles = v(.clipboardIgnoreFinderFiles, d.clipboardIgnoreFinderFiles)
         shelfRemoveAfterDrag = v(.shelfRemoveAfterDrag, d.shelfRemoveAfterDrag)
         glowEnabled = v(.glowEnabled, d.glowEnabled)
         glowStyle = v(.glowStyle, d.glowStyle)
