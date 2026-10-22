@@ -132,7 +132,9 @@ final class IslandModel {
         let wide = FootballService.shared.pillMatch != nil
             || (AppSettings.shared.prefs.focusScoreInPill && AppSettings.shared.prefs.focusMatch && !NowPlaying.shared.hasMedia)
         let base = wide ? CGSize(width: 240, height: 32) : IslandMetrics.closed
-        return HardwareNotch.closedSize(fitting: base, extra: wide ? 20 : 0)
+        // MARK: wip/character: Shadow Clones' faces and count need more room right of a notch.
+        let clones = CharacterEngine.shared.clonesShowing && CharacterEngine.shared.showing ? 66 : 0
+        return HardwareNotch.closedSize(fitting: base, extra: max(wide ? 20 : 0, CGFloat(clones)))
     }
 
     var cornerRadius: CGFloat {
@@ -295,13 +297,15 @@ final class IslandModel {
             permissions.append(r)
         }
         PermissionHotKeys.update(active: true)
+        if !r.agentID.isEmpty { CharacterEngine.shared.tick() } // MARK: wip/character (its clone waves)
     }
 
     func removePermission(id: UUID) {
-        guard permissions.contains(where: { $0.id == id }) else { return }
+        guard let gone = permissions.first(where: { $0.id == id }) else { return }
         withAnimation(Self.closeSpring) {
             permissions.removeAll { $0.id == id }
         }
+        if !gone.agentID.isEmpty { CharacterEngine.shared.tick() } // MARK: wip/character
         if permissions.isEmpty {
             PermissionHotKeys.update(active: false)
             showNextPeekIfIdle()
