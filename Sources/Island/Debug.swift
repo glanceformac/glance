@@ -165,6 +165,13 @@ enum DebugChannel {
         case "cinema-sim": ChromeAmbilight.shared.previewSimulated(seconds: 6)
         case "settings": AppDelegate.shared?.showSettings(page: parts.count > 1 ? SettingsPage(rawValue: parts[1]) : nil)   // settings[:<page>]
         case "settings-close": AppDelegate.shared?.closeSettings()
+        case "settings-snap":   // settings-snap:<name>  the Settings window drawn into a PNG (works off-screen)
+            if let w = NSApp.windows.first(where: { $0.isVisible && $0.title.hasSuffix(" Settings") }), let v = w.contentView,
+               let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? rep.representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent((parts.count > 1 ? parts[1] : "settings") + ".png"))
+            }
         case "tools": ToolsDebug.run(parts.count > 1 ? parts[1] : "")   // MARK: feat/productivity
         case "snapshot": snapshot(name: parts.count > 1 ? parts[1] : "snap")
         case "char": // MARK: wip/character  char:<state> plays a state for 60 s, char:live ends it
