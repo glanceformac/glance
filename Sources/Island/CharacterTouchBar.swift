@@ -29,7 +29,8 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
         guard TouchBarAPI.available, e.active, e.prefs.touchBar, !TouchBarGlow.shared.presented else { return false }
         if Env.isolated && ProcessInfo.processInfo.environment["GLANCE_TEST_TOUCHBAR"] != "1" { return false }
         if AppSettings.shared.prefs.islandHidden { return false }
-        return Self.activeStates.contains(e.frame.state) && !e.frame.gone
+        // Shadow clones keep the strip up while they run (background agents outlive the turn).
+        return (Self.activeStates.contains(e.frame.state) || !e.frame.helpers.isEmpty) && !e.frame.gone
     }
 
     /// Called whenever the character's frame changes.
@@ -139,6 +140,14 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
         var shimmer = false
     }
 
+    /// "Claude Code  3 at work" (", 2 off bar" when some clones have no room on the strip).
+    private static func clonesText(_ h: [CharacterClone], _ t: ([(String, NSColor)]) -> NSAttributedString, orange: NSColor, dim: NSColor) -> NSAttributedString {
+        let busy = h.filter { $0.phase != .done }.count
+        let off = h.count - min(h.count, CloneRunners.maxRunners)
+        if busy == 0 { return t([("All done", NSColor(red: 0.4, green: 0.83, blue: 0.6, alpha: 1)), ("   every agent finished", dim)]) }
+        return t([("Claude Code", orange), ("   \(busy) at work" + (off > 0 ? ", \(off) off bar" : ""), dim)])
+    }
+
     static func content() -> Content {
         let e = CharacterEngine.shared
         var c = Content()
@@ -155,6 +164,8 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
         }
         let np = NowPlaying.shared
         switch e.frame.state {
+        case .idle where !e.frame.helpers.isEmpty:
+            c.text = clonesText(e.frame.helpers, t, orange: orange, dim: dim)
         case .idle:
             let day = Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
             let shelf = ShelfStore.shared.items.count
@@ -168,12 +179,14 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
         case .movie:
             c.wave = .centre
         case .thinking:
-            let n = e.frame.clones
-            c.text = t([("Claude Code:", orange), (" working on it", white), (n > 0 ? "   \(n) helper\(n == 1 ? "" : "s") running" : "", dim)])
+            c.text = e.frame.helpers.isEmpty ? t([("Claude Code:", orange), (" working on it", white)]) : clonesText(e.frame.helpers, t, orange: orange, dim: dim)
             c.shimmer = !e.frame.stills
         case .approval:
-            let summary = IslandModel.shared.permissions.first.map { String($0.summary.split(separator: "\n").first ?? "").prefix(70) } ?? ""
-            c.text = t([("Claude Code needs you:", orange), (" " + (summary.isEmpty ? "approve?" : String(summary)), white)])
+            let first = IslandModel.shared.permissions.first
+            let summary = first.map { String($0.summary.split(separator: "\n").first ?? "").prefix(70) } ?? ""
+            // Asked from inside a subagent: name its clone (it waves on the strip).
+            let who = first.flatMap { p in e.frame.helpers.first { $0.key.hasSuffix("/" + p.agentID) && !p.agentID.isEmpty }?.label }
+            c.text = t([((who ?? "Claude Code") + " needs you:", orange), (" " + (summary.isEmpty ? "approve?" : String(summary)), white)])
             c.buttons = !IslandModel.shared.permissions.isEmpty
         case .finished:
             c.text = t([("✓ ", green), ("All done", white)])
@@ -198,6 +211,9 @@ final class CharacterStripView: NSView {
     private var deny: NSButton!
     private var approve: NSButton!
     private var content = CharacterTouchBar.Content()
+    private let runners = CloneRunners()
+    /// Where the clones' lane starts (the line of text sits to its left).
+    private static let laneX: CGFloat = 240
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -217,6 +233,7 @@ final class CharacterStripView: NSView {
         shimmer.isHidden = true
         layer?.addSublayer(shimmer)
         layer?.addSublayer(waveHost)
+        layer?.addSublayer(runners.lane)
         for _ in 0..<12 {
             let b = CALayer()
             b.backgroundColor = NSColor(red: 0.78, green: 0.72, blue: 1, alpha: 1).cgColor
@@ -256,12 +273,15 @@ final class CharacterStripView: NSView {
             runner.layer?.removeAnimation(forKey: "run")
         }
         label.attributedStringValue = c.text
+        let pack2 = pack
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         deny.isHidden = !c.buttons
         approve.isHidden = !c.buttons
         shimmer.isHidden = !c.shimmer
         waveHost.isHidden = c.wave == .none
         needsLayout = true
         layoutSubtreeIfNeeded()
+        runners.apply(c.frame.gone ? [] : c.frame.helpers, pack: pack2, stills: c.frame.stills, scale: scale)
         animateExtras()
     }
 
@@ -290,6 +310,10 @@ final class CharacterStripView: NSView {
             b.frame = CGRect(x: CGFloat(i) * 5, y: waveHost.bounds.height * 0.3, width: 3, height: waveHost.bounds.height * 0.4)
         }
         let left: CGFloat = 58
+        // Shadow clones run in a lane between the text and the buttons.
+        let lane = content.frame.helpers.isEmpty || content.frame.gone ? nil : CGRect(x: Self.laneX, y: 0, width: max(0, right - Self.laneX), height: h)
+        runners.lane.isHidden = lane == nil
+        if let lane { runners.layout(lane); right = Self.laneX - 6 }
         let textW = min(label.intrinsicContentSize.width, max(0, right - left))
         if content.wave == .right {
             label.frame = NSRect(x: right - textW, y: (h - 18) / 2, width: textW, height: 18)

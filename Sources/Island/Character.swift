@@ -335,6 +335,11 @@ final class CharacterEngine {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     /// Screens asleep: rigs pause their videos and animations.
     private(set) var screensAsleep = false
+    /// Cells the island's clone strip needs (0: no strip). Lags a moment behind the last clone
+    /// leaving, so its poof can play. Kept apart from `frame` so the island only re-lays out
+    /// when this changes.
+    private(set) var cloneCells = 0
+    @ObservationIgnored private var cloneCellsTask: Task<Void, Never>?
     /// Last thing shown on the Shelf (for the Touch Bar line).
     private(set) var lastShelfName = ""
 
@@ -534,6 +539,22 @@ final class CharacterEngine {
         if f != frame {
             withAnimation(IslandModel.openSpring) { frame = f }
             CharacterTouchBar.shared.update()
+        }
+        updateCloneCells()
+    }
+
+    private func updateCloneCells() {
+        let want = frame.gone ? 0 : min(frame.helpers.count, CloneStripView.maxCells)
+        if want > 0 {
+            cloneCellsTask?.cancel(); cloneCellsTask = nil
+            if want != cloneCells { withAnimation(IslandModel.openSpring) { cloneCells = want } }
+        } else if cloneCells > 0 && cloneCellsTask == nil {
+            cloneCellsTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1.1))
+                guard !Task.isCancelled, let self else { return }
+                self.cloneCellsTask = nil
+                if self.frame.helpers.isEmpty || self.frame.gone { withAnimation(IslandModel.closeSpring) { self.cloneCells = 0 } }
+            }
         }
     }
 }
