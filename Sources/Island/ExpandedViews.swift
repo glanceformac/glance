@@ -60,7 +60,8 @@ struct ExpandedContent: View {
                         // MARK: wip/character: the character stands on the left of Home.
                         HStack(spacing: 8) {
                             if CharacterEngine.shared.showing {
-                                CharacterRig(darkBackdrop: theme.dark)
+                                // As tall as the cards beside it (the row is 132 pt), centred in its column.
+                                CharacterRig(darkBackdrop: theme.dark, fitArt: true)
                                     .frame(width: 112)
                                     .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottom)))
                             }
