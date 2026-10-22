@@ -1,0 +1,46 @@
+{
+  "name": "Pocket ninja",
+  "description": "A little ninja with a red headband. Runs to your music and vanishes in a puff of smoke when a movie starts.",
+  "credit": "Original Glance character.",
+  "states": {
+    "idle": {
+      "still": "art/idle.png",
+      "height": 112
+    },
+    "sleeping": {
+      "still": "art/sleeping.png",
+      "height": 112
+    },
+    "music": {
+      "still": "art/music.png",
+      "height": 112
+    },
+    "thinking": {
+      "still": "art/thinking.png",
+      "height": 112
+    },
+    "approval": {
+      "still": "art/approval.png",
+      "height": 112
+    },
+    "finished": {
+      "still": "art/finished.png",
+      "height": 112
+    },
+    "shelf": {
+      "still": "art/shelf.png",
+      "height": 112
+    },
+    "movie": {
+      "still": "art/movie.png",
+      "height": 112
+    }
+  },
+  "touchBar": {
+    "idle": "art/tb-idle.png",
+    "thinking": "art/tb-thinking.png",
+    "approval": "art/tb-approval.png",
+    "finished": "art/tb-finished.png",
+    "sleeping": "art/tb-sleeping.png"
+  }
+}

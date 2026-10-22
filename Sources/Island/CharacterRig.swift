@@ -270,10 +270,15 @@ final class CharacterRigView: NSView {
         guard visible != running else { return }
         running = visible
         if visible {
-            root.speed = 1
-            root.timeOffset = 0
-            root.beginTime = 0
-            root.beginTime = root.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+            // Resume only after a real pause. A rig that was never paused keeps its clock: shifting
+            // it by pausedTime (0) would push every animation added before it reached a window
+            // far into the future, frozen on its first frame (the entry fade at opacity 0).
+            if root.speed == 0 {
+                root.speed = 1
+                root.timeOffset = 0
+                root.beginTime = 0
+                root.beginTime = root.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+            }
             player?.play()
         } else {
             pausedTime = root.convertTime(CACurrentMediaTime(), from: nil)

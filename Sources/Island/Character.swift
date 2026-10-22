@@ -147,7 +147,8 @@ final class CharacterPack: Identifiable {
         self.folder = folder; self.media = media; self.compact = compact
     }
 
-    var isBuiltIn: Bool { folder == nil }
+    /// Ships with Glance (Mochi drawn in code, Kitsune and Pocket ninja in the app's Resources).
+    var isBuiltIn: Bool { id.hasPrefix("builtin:") }
 
     /// Art for a state, with sensible fallbacks (shelf -> finished, meeting -> idle, ...).
     func media(for state: CharacterState, alt: Bool) -> CharacterMedia? {
@@ -208,13 +209,14 @@ enum CharacterManifest {
     static let videoTypes: Set<String> = ["mp4", "mov", "m4v"]
     static let keys: Set<String> = Set(CharacterState.allCases.map(\.rawValue)).union(["idleAlt"])
 
-    static func load(folder: URL) -> CharacterPack? {
+    /// `builtIn`: a pack bundled in the app (id "builtin:<folder>"); otherwise a personal pack.
+    static func load(folder: URL, builtIn: Bool = false) -> CharacterPack? {
         let url = folder.appendingPathComponent("manifest.json")
         guard let data = try? Data(contentsOf: url), data.count < 256 * 1024 else { return nil }
-        return parse(data, folder: folder)
+        return parse(data, folder: folder, builtIn: builtIn)
     }
 
-    static func parse(_ data: Data, folder: URL) -> CharacterPack? {
+    static func parse(_ data: Data, folder: URL, builtIn: Bool = false) -> CharacterPack? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let states = obj["states"] as? [String: Any] else { return nil }
         let root = folder.standardizedFileURL.resolvingSymlinksInPath()
@@ -248,7 +250,7 @@ enum CharacterManifest {
             if let u = file(v, imageTypes) { compact[k] = .file(u) }
         }
         let name = (obj["name"] as? String).map { String($0.prefix(40)) } ?? folder.lastPathComponent
-        return CharacterPack(id: "pack:" + folder.lastPathComponent, name: name,
+        return CharacterPack(id: (builtIn ? "builtin:" : "pack:") + folder.lastPathComponent, name: name,
                              summary: String((obj["description"] as? String ?? "").prefix(200)),
                              credit: String((obj["credit"] as? String ?? "").prefix(200)),
                              folder: folder, media: media, compact: compact)
@@ -260,6 +262,9 @@ final class CharacterLibrary {
     static let shared = CharacterLibrary()
     private(set) var packs: [CharacterPack] = []
 
+    /// Folders in Contents/Resources/Characters, in picker order.
+    static let bundled = ["kitsune", "pocket-ninja"]
+
     static var folder: URL { Env.supportDir.appendingPathComponent("Characters", isDirectory: true) }
 
     private init() { reload() }
@@ -267,6 +272,12 @@ final class CharacterLibrary {
     func reload() {
         var list: [CharacterPack] = [MochiArt.pack]
         let fm = FileManager.default
+        // Built-in packs bundled in the app, in picker order.
+        if let res = Bundle.main.resourceURL?.appendingPathComponent("Characters", isDirectory: true) {
+            for name in Self.bundled {
+                if let p = CharacterManifest.load(folder: res.appendingPathComponent(name, isDirectory: true), builtIn: true) { list.append(p) }
+            }
+        }
         if let dirs = try? fm.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
             for d in dirs.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 if let p = CharacterManifest.load(folder: d) { list.append(p) }

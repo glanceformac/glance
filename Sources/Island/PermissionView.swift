@@ -10,10 +10,14 @@ struct PermissionView: View {
         // MARK: wip/character: the character waves on the left while Claude waits.
         HStack(spacing: 0) {
             if CharacterEngine.shared.active {
+                // The rig scales its 124 x 120 box to fit, bottom-centred: a 150 pt column with
+                // up to 158 pt of height draws the pose at about 1.2x, standing on the button
+                // row and clear of the island's rounded bottom corner.
                 CharacterRig(darkBackdrop: theme.dark)
-                    .frame(width: 118)
+                    .frame(width: 150)
+                    .frame(maxHeight: 158)
                     .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.leading, 10).padding(.bottom, 14)
+                    .padding(.leading, 16).padding(.bottom, 22)
             }
             card
         }
@@ -76,7 +80,7 @@ struct PermissionView: View {
             HStack(spacing: 10) {
                 let lines = request.summary.split(separator: "\n", omittingEmptySubsequences: false).count
                 Text(lines > 8 ? "\(lines) lines · scroll to read all" : "Not answering hands it back to the terminal")
-                    .font(.system(size: 10)).foregroundStyle(theme.tertiary)
+                    .font(.system(size: 10)).foregroundStyle(theme.tertiary).lineLimit(1).minimumScaleFactor(0.85)
                 Spacer()
                 Button { IslandModel.shared.answer(id: request.id, allow: false) } label: {
                     HStack(spacing: 6) {
