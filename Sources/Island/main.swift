@@ -132,6 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showSettings(page: SettingsPage? = nil) { settingsWindow.show(page: page) }
+    func closeSettings() { settingsWindow.close() }
 
     // MARK: wip/character: opening Glance shows Settings, like a normal app.
 
