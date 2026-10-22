@@ -52,6 +52,8 @@ enum DebugChannel {
         case "shelf-pin": if parts.count > 1, let i = Int(parts[1]), i < ShelfStore.shared.items.count { ShelfStore.shared.togglePin(ShelfStore.shared.items[i]) }
         case "shelf-undo": ShelfStore.shared.undoRemoval()
         case "update-check": Updater.shared.checkForUpdates()
+        case "update-check-bg": Updater.shared.updater?.checkForUpdatesInBackground()   // silent, no Sparkle window
+        case "quit": NSApp.terminate(nil)   // a normal quit (Sparkle installs a downloaded update on quit)
         case "windows", "window-snap", "window-click":
             // Isolated test instances only: list / render / press a button in Glance's ordinary windows
             // (the Sparkle update window). Never the island panel, so never a Claude Allow button.
