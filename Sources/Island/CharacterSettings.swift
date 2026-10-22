@@ -193,7 +193,6 @@ struct NativeCharacterPreview: View {
     @State private var expanded = true
     @State private var demo = false
     @State private var tick = 0
-    private let timer = Timer.publish(every: 1.2, on: .main, in: .common).autoconnect()
 
     private var frame: CharacterFrame {
         CharacterFrame(state: state, alt: alt, gone: gone, serial: serial, stills: reduce || Look.shared.reduceMotion, clones: 0)
@@ -254,13 +253,19 @@ struct NativeCharacterPreview: View {
             Text(on ? "\(pack.name): \(state.detail)" : "Character is off. Glance works exactly as it does today.")
                 .font(.caption).foregroundStyle(.secondary)
         }
-        .onReceive(timer) { _ in
-            tick += 1
-            if demo, tick % 3 == 0 {
-                let all = CharacterState.allCases
-                set(all[((all.firstIndex(of: state) ?? 0) + 1) % all.count])
+        // Ticks every 1.2 s, only while the Settings window can be seen.
+        .task(id: SettingsWindowState.shared.visible) {
+            guard SettingsWindowState.shared.visible else { return }
+            while true {
+                try? await Task.sleep(for: .seconds(1.2))
+                if Task.isCancelled { return }
+                tick += 1
+                if demo, tick % 3 == 0 {
+                    let all = CharacterState.allCases
+                    set(all[((all.firstIndex(of: state) ?? 0) + 1) % all.count])
+                }
+                if state == .idle { alt = tick % 7 >= 5 }
             }
-            if state == .idle { alt = tick % 7 >= 5 }
         }
         .onChange(of: reduce) { _, _ in serial += 1 }
     }
