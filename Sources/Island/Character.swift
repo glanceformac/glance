@@ -300,7 +300,10 @@ final class CharacterLibrary {
 final class CharacterEngine {
     static let shared = CharacterEngine()
 
-    private(set) var frame = CharacterFrame()
+    private(set) var frame = CharacterFrame() { didSet { if hidden != frame.gone { hidden = frame.gone } } }
+    /// `frame.gone`, kept apart so views that only ask `showing` (the whole island) are not
+    /// invalidated by every pose change; the rig and the indicator follow `frame` themselves.
+    private(set) var hidden = false
     /// Settings preview: a state shown on the real island for a short while.
     private(set) var override: CharacterState?
     @ObservationIgnored private var overrideUntil = Date.distantPast
@@ -312,6 +315,7 @@ final class CharacterEngine {
     @ObservationIgnored private var shelfUntil = Date.distantPast
     @ObservationIgnored private var goneTask: Task<Void, Never>?
     @ObservationIgnored private var idleTicks = 0
+    @ObservationIgnored private var wasOff = false
     @ObservationIgnored private var fullscreenCache: (at: Date, value: Bool) = (.distantPast, false)
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     /// Screens asleep: rigs pause their videos and animations.
@@ -324,7 +328,7 @@ final class CharacterEngine {
     /// The character is on and has art.
     var active: Bool { pack != nil }
     /// Visible right now (on, and not hidden by a movie).
-    var showing: Bool { active && !frame.gone }
+    var showing: Bool { active && !hidden }
 
     var stills: Bool { prefs.reduceMotion || Look.shared.reduceMotion || ProcessInfo.processInfo.isLowPowerModeEnabled }
 
@@ -468,10 +472,16 @@ final class CharacterEngine {
 
     func tick(force: Bool = false) {
         guard active else {
-            if frame.state != .idle || frame.gone { frame = CharacterFrame() }
-            CharacterTouchBar.shared.update()
+            // Off: nothing changes from second to second, so only a switch-off does any work.
+            let reset = frame.state != .idle || frame.gone
+            if reset || !wasOff || CharacterTouchBar.shared.previewing {
+                if reset { frame = CharacterFrame() }
+                wasOff = true
+                CharacterTouchBar.shared.update()
+            }
             return
         }
+        wasOff = false
         let now = Date()
         if override != nil && overrideUntil <= now { override = nil }
         let real = signals(now: now).resolved
