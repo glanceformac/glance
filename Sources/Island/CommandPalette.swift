@@ -166,7 +166,7 @@ enum BuiltinCommands {
                                   group: "Glance", priority: 20) { AppDelegate.shared?.showSettings() })
         r.registerDynamic(id: "app.hide") {
             let hidden = AppSettings.shared.prefs.islandHidden
-            return [PaletteCommand(id: "app.hide", title: hidden ? "Show Glance" : "Hide Glance", symbol: "eye", group: "Glance", priority: 80) {
+            return [PaletteCommand(id: "app.hide", title: hidden ? "Show the Island" : "Hide the Island", symbol: "eye", group: "Glance", priority: 80) {
                 AppSettings.shared.prefs.islandHidden.toggle()
             }]
         }

@@ -21,16 +21,32 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .frame(width: 200)
             Divider()
-            Form { pageContent }
-                .formStyle(.grouped)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .id(page)
+            VStack(spacing: 0) {
+                if settings.prefs.islandHidden { hiddenBanner }
+                Form { pageContent }
+                    .formStyle(.grouped)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(page)
+            }
         }
         .frame(minWidth: 760, minHeight: 600)
         .onReceive(NotificationCenter.default.publisher(for: SettingsPage.showNotification)) { n in
             if let p = n.object as? SettingsPage { page = p }
         }
         .onChange(of: page) { _, p in SettingsPage.initial = p }
+    }
+
+    /// Shown on every page while the island is hidden, so it is never a mystery where it went.
+    private var hiddenBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "eye.slash").foregroundStyle(.orange)
+            Text("The island is hidden.").font(.system(size: 13, weight: .semibold))
+            Spacer()
+            Button("Show the island") { settings.prefs.islandHidden = false }
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal, 20).padding(.vertical, 10)
+        .background(Color.orange.opacity(0.12))
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -43,7 +59,9 @@ struct SettingsView: View {
                     if !settings.prefs.showMenuBarIcon {
                         Text("To bring the icon back, open Glance again from Applications or Spotlight.").font(.caption).foregroundStyle(.secondary)
                     }
-                    Toggle("Hide Glance", isOn: $settings.prefs.islandHidden)
+                    Toggle("Hide the island", isOn: $settings.prefs.islandHidden)
+                    Text("Hides the island and pauses what it shows. To bring it back, switch this off, or choose Show the Island in the menu bar icon's menu.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Toggle("Desktop volume & brightness dials", isOn: $settings.prefs.desktopDials)
                     if !BrightnessControl.shared.available {
                         Text("Brightness control is not available on this display.").font(.caption).foregroundStyle(.secondary)

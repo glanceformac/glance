@@ -1,11 +1,11 @@
 import AppKit
 import ServiceManagement
 
-/// Menu bar icon: Show/Hide Glance, Settings…, Launch at login, Quit.
+/// Menu bar icon: Show/Hide the Island, Settings…, Launch at login, Quit.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
     private var item: NSStatusItem?
-    private let showHide = NSMenuItem(title: "Hide Glance", action: #selector(toggleIsland), keyEquivalent: "")
+    private let showHide = NSMenuItem(title: "Hide the Island", action: #selector(toggleIsland), keyEquivalent: "")
     private let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
 
     func update() {
@@ -48,7 +48,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
         MainActor.assumeIsolated {
-            showHide.title = AppSettings.shared.prefs.islandHidden ? "Show Glance" : "Hide Glance"
+            showHide.title = AppSettings.shared.prefs.islandHidden ? "Show the Island" : "Hide the Island"
             login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         }
     }
