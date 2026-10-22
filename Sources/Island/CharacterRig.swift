@@ -42,6 +42,9 @@ final class CharacterRigView: NSView {
     var compact = false
     /// Videos made on black only play on a dark backdrop (the black notch, the dark island).
     var darkBackdrop = true
+    /// Scale the visible art of the pack's idle pose (not the whole 124 x 120 box) to fill the
+    /// view, bottom-centred. One size per pack, so the character keeps its scale in every state.
+    var fitArt = false { didSet { if fitArt != oldValue { needsLayout = true } } }
     /// Paused from outside (screens asleep, island hidden).
     var externallyPaused = false { didSet { updateRunning() } }
 
@@ -111,11 +114,50 @@ final class CharacterRigView: NSView {
     override func layout() {
         super.layout()
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        let k = min(bounds.width / Self.design.width, bounds.height / Self.design.height)
-        root.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
-        // Bottom-centre of the box on the bottom-centre of the view.
-        root.position = CGPoint(x: bounds.midX, y: bounds.maxY - Self.design.height * k / 2)
+        if fitArt, let pack, let r = Self.artRect(pack), r.width > 1, r.height > 1 {
+            let k = min(bounds.width / r.width, bounds.height / r.height)
+            root.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
+            // Bottom-centre of the visible art on the bottom-centre of the view.
+            root.position = CGPoint(x: bounds.midX - (r.midX - Self.design.width / 2) * k,
+                                    y: bounds.maxY - (r.maxY - Self.design.height / 2) * k)
+        } else {
+            let k = min(bounds.width / Self.design.width, bounds.height / Self.design.height)
+            root.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
+            // Bottom-centre of the box on the bottom-centre of the view.
+            root.position = CGPoint(x: bounds.midX, y: bounds.maxY - Self.design.height * k / 2)
+        }
         CATransaction.commit()
+    }
+
+    private static var artRects: [String: CGRect] = [:]
+
+    /// Where the idle pose's visible pixels sit in the 124 x 120 box (nil for a video-only idle).
+    @MainActor static func artRect(_ pack: CharacterPack) -> CGRect? {
+        if let r = artRects[pack.id] { return r }
+        guard let media = pack.media(for: .idle, alt: false), let s = media.still, let cg = pack.image(s) else { return nil }
+        let a = CGFloat(cg.width) / CGFloat(max(cg.height, 1))
+        var h = media.stillHeight, w = h * a
+        if w > design.width { w = design.width; h = w / a }
+        let frame = CGRect(x: (design.width - w) / 2, y: design.height - media.stillBottom - h, width: w, height: h)
+        // Opaque bounds, measured once on a small copy (top-left origin).
+        let sw = 96, sh = max(1, Int((CGFloat(sw) / a).rounded()))
+        guard let ctx = CGContext(data: nil, width: sw, height: sh, bitsPerComponent: 8, bytesPerRow: sw * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let data = ctx.data else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: sw, height: sh))
+        let px = data.bindMemory(to: UInt8.self, capacity: sw * sh * 4)
+        var minX = sw, minY = sh, maxX = -1, maxY = -1
+        for y in 0..<sh { for x in 0..<sw where px[(y * sw + x) * 4 + 3] > 24 {
+            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+        } }
+        guard maxX >= minX, maxY >= minY else { return nil }
+        // Bitmap rows run top to bottom in memory.
+        let r = CGRect(x: frame.minX + CGFloat(minX) / CGFloat(sw) * w,
+                       y: frame.minY + CGFloat(minY) / CGFloat(sh) * h,
+                       width: CGFloat(maxX - minX + 1) / CGFloat(sw) * w,
+                       height: CGFloat(maxY - minY + 1) / CGFloat(sh) * h)
+        artRects[pack.id] = r
+        return r
     }
 
     override func viewDidMoveToWindow() {
@@ -138,6 +180,7 @@ final class CharacterRigView: NSView {
     func apply(_ f: CharacterFrame, pack: CharacterPack?) {
         let packChanged = pack !== self.pack
         self.pack = pack
+        if packChanged && fitArt { needsLayout = true }
         frameValue = f
         guard let pack else { clear(); return }
         let media = pack.media(for: f.state, alt: f.alt)
@@ -611,6 +654,7 @@ struct CharacterRig: NSViewRepresentable {
     var pack: CharacterPack? = nil
     var compact = false
     var darkBackdrop = true
+    var fitArt = false
 
     func makeNSView(context: Context) -> CharacterRigView {
         let v = CharacterRigView(frame: .zero)
@@ -621,6 +665,7 @@ struct CharacterRig: NSViewRepresentable {
     func updateNSView(_ v: CharacterRigView, context: Context) {
         let engine = CharacterEngine.shared
         v.compact = compact
+        v.fitArt = fitArt
         v.darkBackdrop = darkBackdrop
         v.externallyPaused = engine.screensAsleep || AppSettings.shared.prefs.islandHidden && frame == nil
         v.apply(frame ?? engine.frame, pack: frame == nil ? engine.pack : pack)
