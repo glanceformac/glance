@@ -473,7 +473,7 @@ final class CloneMoreLayers {
                                                                          .foregroundColor: NSColor(red: 0.16, green: 0.16, blue: 0.2, alpha: 1)])
         label.string = NSAttributedString(string: "\(n) more", attributes: [.font: NSFont.systemFont(ofSize: 10, weight: .semibold),
                                                                             .foregroundColor: NSColor(white: 1, alpha: 0.92)])
-        status.string = NSAttributedString(string: "working", attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .medium), .foregroundColor: CloneLook.blue])
+        status.string = NSAttributedString(string: "\u{25CF} working", attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .medium), .foregroundColor: CloneLook.blue])
         CATransaction.commit()
     }
 }
@@ -824,6 +824,8 @@ final class CloneRunners {
         var ordinal = 0
     }
     private var runners: [String: Runner] = [:]
+    /// The last one to arrive: the next starts one spacing behind it.
+    private weak var newest: Runner?
     private var width: CGFloat = 0
 
     init() {
@@ -879,6 +881,7 @@ final class CloneRunners {
                 CATransaction.begin(); CATransaction.setDisableActions(true)
                 r.root.position = CGPoint(x: x, y: 15)
                 CATransaction.commit()
+                newest = r
             }
             if stills {
                 CATransaction.begin(); CATransaction.setDisableActions(true)
@@ -926,9 +929,8 @@ final class CloneRunners {
 
     /// Lane x for a newcomer: one spacing behind the last runner (or near the start).
     private func spawnX() -> CGFloat {
-        let xs = runners.values.filter { $0.root.superlayer != nil }.map { $0.root.presentation()?.position.x ?? $0.root.position.x }
-        guard let last = xs.min() else { return 26 }
-        var x = last - Self.spacing
+        guard let n = newest, n.root.superlayer != nil, runners.values.contains(where: { $0 === n }) else { return 26 }
+        var x = (n.root.presentation()?.position.x ?? n.root.position.x) - Self.spacing
         while x < -40 { x += loop }
         return x
     }
@@ -987,10 +989,9 @@ final class CloneRunners {
 
     /// Stop where it is (to wave, hop or poof).
     private func freeze(_ r: Runner) {
-        guard r.running else { return }
         r.running = false
         var x = r.root.presentation()?.position.x ?? r.root.position.x
-        x = min(max(x, 20), width - 20)
+        x = min(max(x, 24), width - 24)   // clear of the lane's faded edges
         CATransaction.begin(); CATransaction.setDisableActions(true)
         r.root.position = CGPoint(x: x, y: 15)
         CATransaction.commit()
