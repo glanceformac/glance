@@ -163,8 +163,9 @@ enum CloneAnim {
             let endScale = effect == .foxfire ? 0.7 : 1.5
             kf("opacity", [0, effect == .foxfire ? 1 : 0.95, 0], times: [0, effect == .foxfire ? 0.22 : 0.18, 1], dur: dur, delay: dl, timing: .easeOut, on: b)
             kf("transform.scale", [0.2, endScale], dur: dur, delay: dl, timing: .easeOut, on: b)
-            kf("transform.translation.x", [0, tx], dur: dur, delay: dl, timing: .easeOut, on: b)
-            kf("transform.translation.y", [effect == .foxfire ? 4 * k : 0, ty], dur: dur, delay: dl, timing: .easeOut, on: b)
+            // Position, not transform.translation: the drift must not be scaled with the blob.
+            let from = CGPoint(x: centre.x, y: centre.y + (effect == .foxfire ? 4 * k : 0))
+            kf("position", [NSValue(point: from), NSValue(point: CGPoint(x: centre.x + tx, y: centre.y + ty))], dur: dur, delay: dl, timing: .easeOut, on: b)
             DispatchQueue.main.asyncAfter(deadline: .now() + dur + dl + 0.05) { b.removeFromSuperlayer() }
         }
     }
