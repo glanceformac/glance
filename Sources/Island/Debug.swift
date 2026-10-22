@@ -186,6 +186,13 @@ enum DebugChannel {
                 try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
                 try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("char-rig-\(st.rawValue)\(helpers.isEmpty ? "" : "-x\(helpers.count)").png"))
             }
+        case "clones-film": // clones-film:<spawn|wave|done|poof> one clone of the current pack through a scenario, 0 to 1.8 s
+            let sc = parts.count > 1 ? parts[1] : "spawn"
+            let pack = CharacterEngine.shared.pack ?? MochiArt.pack
+            if let img = CloneStripView.film(sc, pack: pack, times: stride(from: 0.0, through: 1.8, by: 0.15).map { $0 }) {
+                try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
+                try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("film-\(pack.id.replacingOccurrences(of: ":", with: "-"))-\(sc).png"))
+            }
         case "char-tb-snap": // the character Touch Bar strip, rendered offscreen
             let v = CharacterStripView(frame: NSRect(x: 0, y: 0, width: 1085, height: 30))
             v.apply(CharacterTouchBar.content())

@@ -573,7 +573,7 @@ extension CharacterRigView {
         v.apply(CharacterFrame(state: state, alt: alt, serial: 1, stills: true), pack: pack)
         v.layoutSubtreeIfNeeded()
         let (shown, more) = CloneLook.visible(clones, cells: CloneStripView.maxCells)
-        let cellsW = CGFloat(shown.count + (more > 0 ? 1 : 0)) * CloneCellLayers.size.width
+        let cellsW = CloneStripView.inset + CGFloat(shown.count + (more > 0 ? 1 : 0)) * CloneCellLayers.size.width
         let W = 124 + cellsW, H: CGFloat = clones.isEmpty ? 120 : CloneCellLayers.size.height
         guard let layer = v.layer, let ctx = CGContext(data: nil, width: Int(W * 2), height: Int(H * 2), bitsPerComponent: 8, bytesPerRow: 0,
                                                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }

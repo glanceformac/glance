@@ -389,6 +389,13 @@ final class CharacterEngine {
         let now = Date()
         let clonesBefore = clones.count
         clones.handle(event: event, session: key, msg: msg, now: now)
+        if clones.hasLeaving {
+            // A finished clone leaves after its done moment: tick then, not on the next second.
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(CloneTracker.doneHold + 0.05))
+                self?.tick()
+            }
+        }
         switch event {
         case "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "PreCompact":
             sessions[key] = now
@@ -587,6 +594,7 @@ struct CloneTracker {
     private(set) var leaving: [String: (agent: Agent, until: Date)] = [:]
     private var arrivals = 0
     var count: Int { agents.count }
+    var hasLeaving: Bool { !leaving.isEmpty }
 
     mutating func handle(event: String, session: String, msg: [String: Any], now: Date) {
         let id = (msg["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
