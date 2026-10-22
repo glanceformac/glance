@@ -660,7 +660,7 @@ struct CharacterPillIndicator: View {
                 // Shadow clones: a face per clone and how many are at work (orange while one needs you).
                 let asking = f.helpers.contains { $0.phase == .needsYou }
                 let busy = f.helpers.filter { $0.phase != .done }.count
-                CloneHeads().frame(width: CloneHeadsView.width(f.helpers.count), height: 18)
+                CloneHeads().frame(width: CloneHeadsView.width(f.helpers.count), height: CloneHeadsView.height)
                 if busy > 0 {
                     Text("x\(busy)").font(.system(size: 11.5, weight: .bold).monospacedDigit())
                         .foregroundStyle(asking ? Color(red: 1, green: 0.6, blue: 0.3) : .white)

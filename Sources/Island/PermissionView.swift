@@ -17,6 +17,14 @@ struct PermissionView: View {
                     .frame(width: 150)
                     .frame(maxHeight: 158)
                     .frame(maxHeight: .infinity, alignment: .bottom)
+                    .overlay(alignment: .bottomTrailing) {
+                        // Asked from inside a subagent: its shadow clone stands in front, waving.
+                        if let c = request.clone {
+                            CloneStrip(only: c.key)
+                                .frame(width: CloneCellLayers.size.width, height: CloneCellLayers.size.height)
+                                .offset(x: 30, y: 6)
+                        }
+                    }
                     .padding(.leading, 16).padding(.bottom, 22)
             }
             card
@@ -32,7 +40,7 @@ struct PermissionView: View {
                 }
                 .frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Claude needs your OK").font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.primary)
+                    Text(request.clone.map { "\($0.label) needs your OK" } ?? "Claude needs your OK").font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.primary)
                     HStack(spacing: 6) {
                         Label(request.project, systemImage: "folder").labelStyle(.titleAndIcon)
                         Text("·")

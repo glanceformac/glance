@@ -167,6 +167,14 @@ enum DebugChannel {
         case "settings-close": AppDelegate.shared?.closeSettings()
         case "tools": ToolsDebug.run(parts.count > 1 ? parts[1] : "")   // MARK: feat/productivity
         case "snapshot": snapshot(name: parts.count > 1 ? parts[1] : "snap")
+        case "snapshot-seq": // snapshot-seq:<name>:<count>:<ms>  a burst of snapshots from inside the app (motion checks)
+            let a = (parts.count > 1 ? parts[1] : "seq").split(separator: ":").map(String.init)
+            let name = a.first ?? "seq"
+            let n = a.count > 1 ? min(Int(a[1]) ?? 10, 60) : 10
+            let ms = a.count > 2 ? max(Int(a[2]) ?? 100, 30) : 100
+            for i in 0..<n {
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(i * ms)) { snapshot(name: "\(name)-\(String(format: "%02d", i))") }
+            }
         case "char": // MARK: wip/character  char:<state> plays a state for 60 s, char:live ends it
             CharacterEngine.shared.preview(parts.count > 1 ? CharacterState(rawValue: parts[1]) : nil, seconds: 60)
         case "char-rig-snap": // char-rig-snap:<state> one rig, stills, rendered offscreen at 2x

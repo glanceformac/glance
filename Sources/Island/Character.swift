@@ -545,15 +545,17 @@ final class CharacterEngine {
 
     private func updateCloneCells() {
         let want = frame.gone ? 0 : min(frame.helpers.count, CloneStripView.maxCells)
-        if want > 0 {
+        if want >= cloneCells {
             cloneCellsTask?.cancel(); cloneCellsTask = nil
             if want != cloneCells { withAnimation(IslandModel.openSpring) { cloneCells = want } }
-        } else if cloneCells > 0 && cloneCellsTask == nil {
+        } else if cloneCellsTask == nil {
+            // Fewer cells: wait for the poof to play (longer for the last one: the strip goes).
             cloneCellsTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(1.1))
+                try? await Task.sleep(for: .seconds(want == 0 ? 1.1 : CloneStripView.closeUpDelay))
                 guard !Task.isCancelled, let self else { return }
                 self.cloneCellsTask = nil
-                if self.frame.helpers.isEmpty || self.frame.gone { withAnimation(IslandModel.closeSpring) { self.cloneCells = 0 } }
+                let now = self.frame.gone ? 0 : min(self.frame.helpers.count, CloneStripView.maxCells)
+                if now < self.cloneCells { withAnimation(now == 0 ? IslandModel.closeSpring : IslandModel.openSpring) { self.cloneCells = now } }
             }
         }
     }
