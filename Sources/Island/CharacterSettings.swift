@@ -99,6 +99,9 @@ private struct LiveStateButtons: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if engine.override != nil { Button("Back to live") { engine.preview(nil) } }
+                Button(engine.clonesDemo ? "Playing Shadow Clones" : "Play Shadow Clones") { engine.playClonesDemo() }
+                    .disabled(engine.clonesDemo || !engine.prefs.clones)
+                    .help("Four made-up agents appear on the notch, one needs you, then they finish and leave.")
             }
         }
         .disabled(!engine.active)
@@ -193,6 +196,7 @@ struct NativeCharacterPreview: View {
     @State private var expanded = true
     @State private var demo = false
     @State private var tick = 0
+    @State private var clones = false
 
     private var frame: CharacterFrame {
         CharacterFrame(state: state, alt: alt, gone: gone, serial: serial, stills: reduce || Look.shared.reduceMotion, clones: 0)
@@ -209,6 +213,11 @@ struct NativeCharacterPreview: View {
                             CharacterRig(frame: frame, pack: pack).frame(width: 124, height: 120)
                                 .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottom)))
                         }
+                        if clones && on && !gone {
+                            // Shadow clones take the space beside the character, as on Home.
+                            CloneStrip(clones: Self.sampleClones, pack: pack, stills: frame.stills)
+                                .frame(width: 236, height: 120)
+                        } else {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(state == .movie ? "Cinema mode" : "Glance").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.55))
                             Text(state.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
@@ -216,6 +225,7 @@ struct NativeCharacterPreview: View {
                         }
                         .padding(.trailing, 18)
                         .padding(.leading, on && !gone ? 0 : 22)
+                        }
                     }
                 }
                 .frame(width: 380, height: expanded ? 120 : 32)
@@ -248,6 +258,7 @@ struct NativeCharacterPreview: View {
                 Toggle("Expanded", isOn: $expanded)
                 Toggle("Reduce motion", isOn: $reduce)
                 Toggle("Character on", isOn: $on)
+                Toggle("Shadow clones", isOn: $clones)
             }
             .toggleStyle(.switch).controlSize(.small)
             Text(on ? "\(pack.name): \(state.detail)" : "Character is off. Glance works exactly as it does today.")
@@ -269,6 +280,11 @@ struct NativeCharacterPreview: View {
         }
         .onChange(of: reduce) { _, _ in serial += 1 }
     }
+
+    /// Three clones as Claude Code would run them: one at work, one waiting for you, one done.
+    static let sampleClones = [CharacterClone(key: "p/1", label: "Explore", phase: .working, ordinal: 1),
+                               CharacterClone(key: "p/2", label: "Plan", phase: .needsYou, ordinal: 2),
+                               CharacterClone(key: "p/3", label: "Code reviewer", phase: .working, ordinal: 3)]
 
     private func set(_ s: CharacterState) {
         state = s; serial += 1; gone = false; alt = false

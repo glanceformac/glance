@@ -669,8 +669,17 @@ extension CloneAnim {
 /// (the approval card shows the one that asked).
 struct CloneStrip: NSViewRepresentable {
     var only: String? = nil
+    /// Settings preview: fixed clones and pack instead of the live engine.
+    var clones: [CharacterClone]? = nil
+    var pack: CharacterPack? = nil
+    var stills = false
     func makeNSView(context: Context) -> CloneStripView { CloneStripView(frame: .zero) }
     func updateNSView(_ v: CloneStripView, context: Context) {
+        if let clones {
+            v.divided = true
+            v.apply(clones, pack: pack, stills: stills)
+            return
+        }
         let e = CharacterEngine.shared
         v.divided = only == nil
         v.externallyPaused = e.screensAsleep || AppSettings.shared.prefs.islandHidden
