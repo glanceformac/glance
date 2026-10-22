@@ -30,6 +30,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: SettingsPage.showNotification)) { n in
             if let p = n.object as? SettingsPage { page = p }
         }
+        .onChange(of: page) { _, p in SettingsPage.initial = p }
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -414,6 +415,7 @@ struct SettingsView: View {
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var occlusionObs: NSObjectProtocol?
 
     /// The full Settings window. While it is open Glance has a Dock icon and a small menu bar
     /// (so it feels like a normal app and ⌘C / ⌘V work in text fields); closing it goes back to
@@ -424,7 +426,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             w.title = "\(AppIdentity.name) Settings"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView())
             w.contentMinSize = NSSize(width: 760, height: 560)
             w.delegate = self
             if Self.offscreenTest {
@@ -433,8 +434,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 w.setFrameAutosaveName("GlanceSettingsWindow")
                 if !w.setFrameUsingName("GlanceSettingsWindow") { w.center() }
             }
+            occlusionObs = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: w, queue: .main) { _ in
+                MainActor.assumeIsolated { SettingsWindowState.shared.visible = w.occlusionState.contains(.visible) }
+            }
             window = w
         }
+        if let page { SettingsPage.initial = page }
+        // The page tree is built on each open and dropped on close (see windowWillClose).
+        if window?.contentView as? NSHostingView<SettingsView> == nil { window?.contentView = NSHostingView(rootView: SettingsView()) }
         if let page { NotificationCenter.default.post(name: SettingsPage.showNotification, object: page) }
         IslandModel.shared.setExpanded(false)
         if Self.offscreenTest { window?.orderFront(nil); return }
@@ -451,7 +458,22 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         AppMenu.becomeAccessory()
+        SettingsWindowState.shared.visible = false
+        // A closed window keeps its SwiftUI tree alive (timers, previews, observation updates), so
+        // drop it once the close has finished. The frame and the last page come back on the next open.
+        DispatchQueue.main.async { [weak self] in
+            guard let w = self?.window, !w.isVisible else { return }
+            w.contentView = nil
+        }
     }
+}
+
+/// Whether the Settings window can be seen (not closed, minimised or covered), for previews
+/// that animate on their own.
+@Observable @MainActor
+final class SettingsWindowState {
+    static let shared = SettingsWindowState()
+    var visible = false
 }
 
 // MARK: - Football team picker (teams are loaded from the data source at runtime)

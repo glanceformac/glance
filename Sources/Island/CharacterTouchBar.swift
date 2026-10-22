@@ -19,6 +19,8 @@ final class CharacterTouchBar: NSObject, NSTouchBarDelegate {
     private var dismissTask: Task<Void, Never>?
     /// Settings preview window strips (same content as the real bar).
     private var previewStrips: [CharacterStripView] = []
+    /// Settings is showing the Touch Bar preview (it follows every tick).
+    var previewing: Bool { !previewStrips.isEmpty }
 
     private static let activeStates: Set<CharacterState> = [.music, .movie, .thinking, .approval, .finished, .shelf, .meeting]
 
