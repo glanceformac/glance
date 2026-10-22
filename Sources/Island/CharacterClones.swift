@@ -222,7 +222,7 @@ enum CloneAnim {
 /// One clone's layers: glow, wisp at the feet, the tinted art, then its label and status.
 @MainActor
 final class CloneCellLayers {
-    static let size = CGSize(width: 60, height: 132)
+    static let size = CGSize(width: 72, height: 132)
     let root = CALayer()
     let body = CALayer()
     private let art = CALayer()
@@ -240,7 +240,7 @@ final class CloneCellLayers {
     private var ordinal = 0
     /// Art box (bottom-centred) inside the cell.
     private var artBox: CGRect {
-        let s: CGFloat = 58
+        let s: CGFloat = 62
         return CGRect(x: (Self.size.width - s) / 2, y: Self.size.height - 30 - s, width: s, height: s)
     }
 
@@ -394,7 +394,7 @@ final class CloneCellLayers {
         CloneAnim.spawn(effect, on: body, delay: delay)
         for l in [label, status, dot, wisp] { CloneAnim.kf("opacity", [0, 1], dur: 0.35, delay: delay, timing: .easeOut, key: "fade-in", on: l) }
         let r = root, c = puffCentre
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { CloneAnim.puff(effect, in: r, at: c, scale: 0.8) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { CloneAnim.puff(effect, in: r, at: c, scale: 1) }
     }
 
     /// The clone goes: a puff of its pack's effect, the vanish, then the layers are removed.
@@ -405,7 +405,7 @@ final class CloneCellLayers {
         CloneAnim.kf("opacity", [1, 0], dur: 0.5, delay: 0.25, hold: true, key: "fade-out", on: label)
         CloneAnim.kf("opacity", [1, 0], dur: 0.5, delay: 0.25, hold: true, key: "fade-out", on: status)
         CloneAnim.kf("opacity", [1, 0], dur: 0.5, delay: 0.25, hold: true, key: "fade-out", on: dot)
-        CloneAnim.puff(effect, in: root, at: puffCentre, scale: 0.8)
+        CloneAnim.puff(effect, in: root, at: puffCentre, scale: 1)
         let r = root
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) { r.removeFromSuperlayer() }
     }
@@ -426,11 +426,12 @@ final class CloneMoreLayers {
     init(scale: CGFloat) {
         root.bounds = CGRect(origin: .zero, size: CloneCellLayers.size)
         root.anchorPoint = .zero
-        cloud.bounds = CGRect(x: 0, y: 0, width: 58, height: 50)
+        cloud.bounds = CGRect(x: 0, y: 0, width: 64, height: 56)
         cloud.position = CGPoint(x: CloneCellLayers.size.width / 2, y: CloneCellLayers.size.height - 30 - 28)
         root.addSublayer(cloud)
-        for r in [CGRect(x: 2, y: 20, width: 25, height: 25), CGRect(x: 14, y: 5, width: 31, height: 31),
-                  CGRect(x: 32, y: 16, width: 25, height: 25), CGRect(x: 12, y: 25, width: 34, height: 23)] {
+        // The design's four-puff cloud.
+        for r in [CGRect(x: 2, y: 22, width: 28, height: 28), CGRect(x: 16, y: 6, width: 34, height: 34),
+                  CGRect(x: 36, y: 18, width: 28, height: 28), CGRect(x: 14, y: 28, width: 38, height: 26)] {
             let g = CAGradientLayer()
             g.type = .radial
             g.frame = r
@@ -439,7 +440,7 @@ final class CloneMoreLayers {
             cloud.addSublayer(g)
             puffs.append(g)
         }
-        count.frame = CGRect(x: 0, y: 17, width: 58, height: 22)
+        count.frame = CGRect(x: 0, y: 20, width: 64, height: 24)
         count.alignmentMode = .center
         cloud.addSublayer(count)
         label.frame = CGRect(x: 0, y: CloneCellLayers.size.height - 27, width: CloneCellLayers.size.width, height: 14)
@@ -484,12 +485,18 @@ final class CloneMoreLayers {
 /// longer fit.
 final class CloneStripView: NSView {
     /// Cells that fit the open island's cards area (640 pt island, character column aside).
-    static let maxCells = 7
+    static let maxCells = 6
+    /// Room on the left for the divider between the character and its clones.
+    static let inset: CGFloat = 12
+    /// Off for a lone clone (the approval card): no divider, no inset.
+    var divided = true { didSet { divider.isHidden = !divided } }
+    private var inset: CGFloat { divided ? Self.inset : 0 }
+    private let divider = CAGradientLayer()
     /// Cells that fit the view now (all of maxCells until it has a width).
     private var cellsThatFit: Int {
-        bounds.width > 1 ? max(1, min(Self.maxCells, Int(bounds.width / CloneCellLayers.size.width))) : Self.maxCells
+        bounds.width > 1 ? max(1, min(Self.maxCells, Int((bounds.width - inset) / CloneCellLayers.size.width))) : Self.maxCells
     }
-    private let host = CALayer()
+    fileprivate let host = CALayer()
     private var cells: [String: CloneCellLayers] = [:]
     private var more: CloneMoreLayers?
     /// Left to right, as last laid out.
@@ -509,6 +516,8 @@ final class CloneStripView: NSView {
         layer?.masksToBounds = false
         host.anchorPoint = .zero
         layer?.addSublayer(host)
+        divider.colors = [NSColor(white: 1, alpha: 0).cgColor, NSColor(white: 1, alpha: 0.12).cgColor, NSColor(white: 1, alpha: 0).cgColor]
+        host.addSublayer(divider)
     }
     required init?(coder: NSCoder) { fatalError() }
     override var isFlipped: Bool { true }
@@ -520,6 +529,7 @@ final class CloneStripView: NSView {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         // Cells are 132 pt tall, bottom-aligned in the view.
         host.frame = CGRect(x: 0, y: bounds.height - CloneCellLayers.size.height, width: bounds.width, height: CloneCellLayers.size.height)
+        divider.frame = CGRect(x: 2, y: 26, width: 1, height: 64)
         CATransaction.commit()
         // A new width can fit more or fewer cells.
         if bounds.width != laidOutWidth, let l = last {
@@ -559,7 +569,7 @@ final class CloneStripView: NSView {
         var slots: [String?] = shown.map { $0.key }
         for (k, i) in holes.sorted(by: { $0.value < $1.value }) { _ = k; slots.insert(nil, at: min(i, slots.count)) }
         var slotX: [String: CGFloat] = [:]
-        for (i, k) in slots.enumerated() { if let k { slotX[k] = CGFloat(i) * CloneCellLayers.size.width } }
+        for (i, k) in slots.enumerated() { if let k { slotX[k] = inset + CGFloat(i) * CloneCellLayers.size.width } }
         var x: CGFloat = 0
         for c in shown {
             let cell: CloneCellLayers
@@ -575,7 +585,7 @@ final class CloneStripView: NSView {
             // in place of the cards) waits a moment for the room to be there.
             if isNew { cell.spawn(effect: effect, stills: stills, delay: (slotX[c.key] ?? 0) + CloneCellLayers.size.width > bounds.width + 1 ? 0.4 : 0) }
         }
-        x = CGFloat(slots.count) * CloneCellLayers.size.width
+        x = inset + CGFloat(slots.count) * CloneCellLayers.size.width
         if extra > 0 {
             let m = more ?? CloneMoreLayers(scale: scale)
             if more == nil { more = m; host.addSublayer(m.root); move(m.root, to: x, animated: false)
@@ -658,6 +668,7 @@ struct CloneStrip: NSViewRepresentable {
     func makeNSView(context: Context) -> CloneStripView { CloneStripView(frame: .zero) }
     func updateNSView(_ v: CloneStripView, context: Context) {
         let e = CharacterEngine.shared
+        v.divided = only == nil
         v.externallyPaused = e.screensAsleep || AppSettings.shared.prefs.islandHidden
         let h = e.frame.helpers
         v.apply(only.map { k in h.filter { $0.key == k } } ?? h, pack: e.pack, stills: e.frame.stills)
@@ -1009,5 +1020,48 @@ final class CloneRunners {
         r.root.position = CGPoint(x: x, y: 15)
         CATransaction.commit()
         r.root.removeAnimation(forKey: "run")
+    }
+}
+
+// MARK: - Debug: motion film (offscreen, no window)
+
+extension CloneStripView {
+    /// Debug: renders one clone through a scenario ("spawn", "wave", "done", "poof") at the given
+    /// times (seconds after it starts), frames stacked top to bottom on grey. The strip's clock is
+    /// frozen and stepped, so this shows the real Core Animation keyframes without a window.
+    static func film(_ scenario: String, pack: CharacterPack, times: [Double]) -> CGImage? {
+        let w = Self.inset + CloneCellLayers.size.width * 2, h = CloneCellLayers.size.height
+        let v = CloneStripView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        v.layoutSubtreeIfNeeded()
+        let a = CharacterClone(key: "s/a", label: "Explore", phase: .working, ordinal: 1)
+        var b = a
+        let steady = CharacterClone(key: "s/b", label: "Helper", phase: .working, ordinal: 2)
+        switch scenario {
+        case "spawn": break
+        case "wave": v.apply([a, steady], pack: pack, stills: false); b.phase = .needsYou
+        case "done": v.apply([a, steady], pack: pack, stills: false); b.phase = .done
+        default: b.phase = .done; v.apply([b, steady], pack: pack, stills: false)
+        }
+        let host = v.host
+        // Let the setup animations finish before the scenario starts.
+        let t0 = host.convertTime(CACurrentMediaTime(), from: nil)
+        if scenario == "poof" { v.apply([steady], pack: pack, stills: false) } else if scenario == "spawn" { v.apply([a, steady], pack: pack, stills: false) } else { v.apply([b, steady], pack: pack, stills: false) }
+        host.speed = 0
+        guard let ctx = CGContext(data: nil, width: Int(w * 2), height: Int(h * 2) * times.count, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.setFillColor(NSColor(white: 0.12, alpha: 1).cgColor)
+        ctx.fill(CGRect(x: 0, y: 0, width: Int(w * 2), height: Int(h * 2) * times.count))
+        for (i, t) in times.enumerated() {
+            host.timeOffset = t0 + t
+            CATransaction.flush()
+            guard let layer = v.layer else { continue }
+            ctx.saveGState()
+            ctx.scaleBy(x: 2, y: 2)
+            // Frame i from the top.
+            ctx.translateBy(x: 0, y: CGFloat(times.count - i) * h); ctx.scaleBy(x: 1, y: -1)
+            (layer.presentation() ?? layer).render(in: ctx)
+            ctx.restoreGState()
+        }
+        return ctx.makeImage()
     }
 }
