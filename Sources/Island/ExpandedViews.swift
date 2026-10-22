@@ -65,13 +65,16 @@ struct ExpandedContent: View {
                                     .frame(width: 112)
                                     .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottom)))
                             }
-                            // Shadow clones: one cell per running Claude Code subagent (the island widens for them).
-                            if CharacterEngine.shared.cloneCells > 0 {
+                            // Shadow clones: while Claude Code subagents run, their clones take over
+                            // the cards area (one cell each); the cards come back once they are gone.
+                            if CharacterEngine.shared.clonesShowing {
                                 CloneStrip()
-                                    .frame(width: CGFloat(CharacterEngine.shared.cloneCells) * CloneCellLayers.size.width)
-                                    .transition(.opacity)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .leading)))
+                            } else {
+                                CardsRow(theme: theme)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .trailing)))
                             }
-                            CardsRow(theme: theme)
                         }
                     }
                 }
