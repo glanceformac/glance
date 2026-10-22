@@ -169,7 +169,7 @@ These paths point at the installed copy in /Applications (from the installer, Ho
 | `Notification` (`idle_prompt`) | A short peek when Claude is waiting for your input | Optional |
 | `PostToolUse` (Bash, Edit, Write…) | Counts files changed (shown in the Done animation). A successful `git commit` plays the passing-move COMMIT animation; `git push`, `vercel` / `vercel deploy` and `gh pr create` play the floodlight PUSHED / DEPLOYED / PR OPENED animation | Optional (football celebrations) |
 | `PostToolUseFailure` (Bash) | If one of those commands fails: the red-card animation with the first line of the error | Optional |
-| `SubagentStart` / `SubagentStop` | Shadow clones: while Claude Code runs subagents, the notch character shows one small clone per running subagent (up to five, then "+N"), in the open island, the closed pill (with an "x3" count) and the Touch Bar ("3 helpers running"). Each clone goes when its subagent stops. Turn it off in Settings › Character | Optional (needs the character) |
+| `SubagentStart` / `SubagentStop` | Shadow clones: while Claude Code runs subagents, the notch character gets one clone per running subagent, labelled with its agent type ("Explore", "Plan", or "Helper"). In the open island the clones stand beside the character (up to four, then "+N"); the closed pill shows a small face per clone and the count; on the Touch Bar they run along the strip. A clone pops in when its subagent starts, waves with an orange glow while that subagent waits for your approval, hops when it is done and then leaves in a puff of its pack's effect (smoke, fox-fire or rice flour). Turn it off in Settings › Character | Optional (needs the character) |
 | `StopFailure`, `SessionEnd` | Nothing visible. They end the "working" state and clear any clones when a turn fails or a session closes | Optional |
 | `PreToolUse` (Bash) | Long-command islands: when a Bash call runs longer than the threshold (Settings › Developer, default 30 s), a small running capsule with the command and a clock appears inside the pill; when it ends (`PostToolUse` / `PostToolUseFailure`) a peek shows how long it took and its exit status | Optional |
 
@@ -177,7 +177,9 @@ For these events the helper strips file contents and tool output before sending;
 command line, file path and the first 800 characters of an error reach Glance. For a Bash
 `PostToolUse` it also passes one flag, whether the call was interrupted (no output text).
 
-Shadow clones are matched by `agent_id`. A main-session `Stop` clears the session's clones,
+Shadow clones are matched by `agent_id`; their label comes from `agent_type`. A
+`PermissionRequest` that carries an `agent_id` (one asked from inside a subagent) makes that
+subagent's clone wave and names it on the approval card. A main-session `Stop` clears the session's clones,
 except for background subagents still listed as running in its `background_tasks`; the idle
 prompt notification, `StopFailure` and `SessionEnd` clear them too. A clone whose subagent has
 sent nothing for 20 minutes is removed, in case its stop event was missed. For `Stop` and

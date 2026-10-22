@@ -71,6 +71,18 @@ enum CloneLook {
         }
     }
 
+    /// The text, shortened with an ellipsis until it fits `width` (CATextLayer draws nothing
+    /// for a single line that is too wide).
+    static func fitted(_ text: String, width: CGFloat, attributes: [NSAttributedString.Key: Any]) -> NSAttributedString {
+        var t = text
+        var s = NSAttributedString(string: t, attributes: attributes)
+        while s.size().width > width && t.count > 2 {
+            t = String(t.dropLast(t.hasSuffix("\u{2026}") ? 2 : 1)).trimmingCharacters(in: .whitespaces) + "\u{2026}"
+            s = NSAttributedString(string: t, attributes: attributes)
+        }
+        return s
+    }
+
     /// Which clones get a place when there is room for `cells`: oldest first, the overflow folds
     /// into a "+N" cell, and a clone that needs you always keeps its place.
     static func visible(_ all: [CharacterClone], cells: Int) -> (shown: [CharacterClone], more: Int) {
@@ -158,20 +170,20 @@ enum CloneAnim {
     }
 
     /// The pop-in: smoke pops, fox-fire flickers in, a mochi splits off from the left.
-    static func spawn(_ effect: CloneEffect, on l: CALayer) {
+    static func spawn(_ effect: CloneEffect, on l: CALayer, delay d: CFTimeInterval = 0) {
         switch effect {
         case .smoke:
-            kf("opacity", [0, 1, 1], times: [0, 0.25, 1], dur: 0.9, timing: .easeOut, key: "spawn1", on: l)
-            kf("transform.scale", [0.35, 1.1, 0.97, 1], times: [0, 0.25, 0.55, 1], dur: 0.9, timing: .easeOut, key: "spawn2", on: l)
+            kf("opacity", [0, 1, 1], times: [0, 0.25, 1], dur: 0.9, delay: d, timing: .easeOut, key: "spawn1", on: l)
+            kf("transform.scale", [0.35, 1.1, 0.97, 1], times: [0, 0.25, 0.55, 1], dur: 0.9, delay: d, timing: .easeOut, key: "spawn2", on: l)
         case .foxfire:
-            kf("opacity", [0, 0.4, 1, 0.55, 1, 1], times: [0, 0.3, 0.45, 0.6, 0.75, 1], dur: 1, key: "spawn3", on: l)
-            kf("transform.scale", [0.5, 0.8, 1.06, 1, 1], times: [0, 0.3, 0.45, 0.75, 1], dur: 1, key: "spawn4", on: l)
-            kf("transform.translation.y", [6, 2, 0, 0], times: [0, 0.3, 0.45, 1], dur: 1, key: "spawn5", on: l)
+            kf("opacity", [0, 0.4, 1, 0.55, 1, 1], times: [0, 0.3, 0.45, 0.6, 0.75, 1], dur: 1, delay: d, key: "spawn3", on: l)
+            kf("transform.scale", [0.5, 0.8, 1.06, 1, 1], times: [0, 0.3, 0.45, 0.75, 1], dur: 1, delay: d, key: "spawn4", on: l)
+            kf("transform.translation.y", [6, 2, 0, 0], times: [0, 0.3, 0.45, 1], dur: 1, delay: d, key: "spawn5", on: l)
         case .flour:
-            kf("opacity", [0, 1, 1], times: [0, 0.3, 1], dur: 0.95, key: "spawn6", on: l)
-            kf("transform.translation.x", [-46, -14, 0, 0], times: [0, 0.3, 0.62, 1], dur: 0.95, timing: .easeOut, key: "spawn7", on: l)
-            kf("transform.scale.x", [0.4, 1.3, 0.88, 1], times: [0, 0.3, 0.62, 1], dur: 0.95, timing: .easeOut, key: "spawn8", on: l)
-            kf("transform.scale.y", [0.3, 0.68, 1.14, 1], times: [0, 0.3, 0.62, 1], dur: 0.95, timing: .easeOut, key: "spawn9", on: l)
+            kf("opacity", [0, 1, 1], times: [0, 0.3, 1], dur: 0.95, delay: d, key: "spawn6", on: l)
+            kf("transform.translation.x", [-46, -14, 0, 0], times: [0, 0.3, 0.62, 1], dur: 0.95, delay: d, timing: .easeOut, key: "spawn7", on: l)
+            kf("transform.scale.x", [0.4, 1.3, 0.88, 1], times: [0, 0.3, 0.62, 1], dur: 0.95, delay: d, timing: .easeOut, key: "spawn8", on: l)
+            kf("transform.scale.y", [0.3, 0.68, 1.14, 1], times: [0, 0.3, 0.62, 1], dur: 0.95, delay: d, timing: .easeOut, key: "spawn9", on: l)
         }
     }
 
@@ -292,8 +304,8 @@ final class CloneCellLayers {
             ordinal = c.ordinal
             if c.label != labelText || packChanged {
                 labelText = c.label
-                label.string = NSAttributedString(string: c.label, attributes: [.font: NSFont.systemFont(ofSize: 10, weight: .semibold),
-                                                                                 .foregroundColor: NSColor(white: 1, alpha: 0.92)])
+                label.string = CloneLook.fitted(c.label, width: Self.size.width - 2, attributes: [.font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+                                                                                                    .foregroundColor: NSColor(white: 1, alpha: 0.92)])
             }
             if phaseChanged {
                 let cg = CloneLook.art(pack, CloneLook.pose(newPhase))
@@ -368,12 +380,21 @@ final class CloneCellLayers {
         status.frame = CGRect(x: x0 + 8, y: Self.size.height - 13.5, width: w + 2, height: 12)
     }
 
-    func spawn(effect: CloneEffect, stills: Bool) {
+    /// `delay`: the cell waits (invisible) until the strip has room for it.
+    func spawn(effect: CloneEffect, stills: Bool, delay: CFTimeInterval = 0) {
         guard !stills else { return }
-        CloneAnim.spawn(effect, on: body)
-        CloneAnim.kf("opacity", [0, 1], dur: 0.35, timing: .easeOut, key: "fade-in", on: label)
-        CloneAnim.kf("opacity", [0, 1], dur: 0.35, timing: .easeOut, key: "fade-in", on: status)
-        CloneAnim.puff(effect, in: root, at: puffCentre, scale: 0.8)
+        // "starting" for the length of the pop-in, then the real status.
+        let (txt, col) = CloneLook.status(nil)
+        setStatus(txt, col)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            let (t, c) = CloneLook.status(self.phase)
+            CATransaction.begin(); CATransaction.setDisableActions(true); self.setStatus(t, c); CATransaction.commit()
+        }
+        CloneAnim.spawn(effect, on: body, delay: delay)
+        for l in [label, status, dot, wisp] { CloneAnim.kf("opacity", [0, 1], dur: 0.35, delay: delay, timing: .easeOut, key: "fade-in", on: l) }
+        let r = root, c = puffCentre
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { CloneAnim.puff(effect, in: r, at: c, scale: 0.8) }
     }
 
     /// The clone goes: a puff of its pack's effect, the vanish, then the layers are removed.
@@ -465,6 +486,12 @@ final class CloneStripView: NSView {
     private let host = CALayer()
     private var cells: [String: CloneCellLayers] = [:]
     private var more: CloneMoreLayers?
+    /// Left to right, as last laid out.
+    private var order: [String] = []
+    /// Clones poofing right now, by their slot: the others wait before closing up.
+    private var holes: [String: Int] = [:]
+    private var last: (all: [CharacterClone], pack: CharacterPack, stills: Bool)?
+    static let closeUpDelay: TimeInterval = 0.42
     private var running = false
     private var occlusionObs: NSObjectProtocol?
     var externallyPaused = false { didSet { updateRunning() } }
@@ -491,10 +518,12 @@ final class CloneStripView: NSView {
 
     func apply(_ all: [CharacterClone], pack: CharacterPack?, stills: Bool) {
         guard let pack else { clearAll(); updateRunning(); return }
+        last = (all, pack, stills)
         let (shown, extra) = CloneLook.visible(all, cells: Self.maxCells)
         let allKeys = Set(all.map(\.key)), shownKeys = Set(shown.map(\.key))
         let effect = pack.cloneEffect
-        // Gone for good: poof. Folded into "+N": a quick fade.
+        // Gone for good: poof, and the others close up only once the puff has covered it.
+        // Folded into "+N": a quick fade.
         for (k, c) in cells where !shownKeys.contains(k) {
             cells[k] = nil
             if allKeys.contains(k) {
@@ -503,8 +532,22 @@ final class CloneStripView: NSView {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { r.removeFromSuperlayer() }
             } else {
                 c.poof(effect: effect, stills: stills)
+                if !stills, let i = order.firstIndex(of: k) {
+                    holes[k] = i
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.closeUpDelay) { [weak self] in
+                        guard let self, self.holes.removeValue(forKey: k) != nil, let l = self.last else { return }
+                        self.apply(l.all, pack: l.pack, stills: l.stills)
+                    }
+                }
             }
         }
+        for k in holes.keys where shownKeys.contains(k) { holes[k] = nil }
+        order = shown.map(\.key)
+        // Slots: the shown clones, with a hole where a clone is still poofing.
+        var slots: [String?] = shown.map { $0.key }
+        for (k, i) in holes.sorted(by: { $0.value < $1.value }) { _ = k; slots.insert(nil, at: min(i, slots.count)) }
+        var slotX: [String: CGFloat] = [:]
+        for (i, k) in slots.enumerated() { if let k { slotX[k] = CGFloat(i) * CloneCellLayers.size.width } }
         var x: CGFloat = 0
         for c in shown {
             let cell: CloneCellLayers
@@ -515,10 +558,11 @@ final class CloneStripView: NSView {
                 host.addSublayer(cell.root)
             }
             cell.configure(c, pack: pack, stills: stills)
-            move(cell.root, to: x, animated: !isNew && !stills)
-            if isNew { cell.spawn(effect: effect, stills: stills) }
-            x += CloneCellLayers.size.width
+            move(cell.root, to: slotX[c.key] ?? 0, animated: !isNew && !stills)
+            // A newcomer beyond the strip's current width waits for the island to make room.
+            if isNew { cell.spawn(effect: effect, stills: stills, delay: (slotX[c.key] ?? 0) + CloneCellLayers.size.width > bounds.width + 1 ? 0.4 : 0) }
         }
+        x = CGFloat(slots.count) * CloneCellLayers.size.width
         if extra > 0 {
             let m = more ?? CloneMoreLayers(scale: scale)
             if more == nil { more = m; host.addSublayer(m.root); move(m.root, to: x, animated: false)
@@ -551,7 +595,7 @@ final class CloneStripView: NSView {
 
     private func clearAll() {
         cells.values.forEach { $0.root.removeFromSuperlayer() }
-        cells = [:]
+        cells = [:]; holes = [:]; order = []
         more?.root.removeFromSuperlayer(); more = nil
     }
 
@@ -594,13 +638,25 @@ extension CloneAnim {
     }
 }
 
-/// SwiftUI wrapper for the island strip (follows the live engine).
+/// SwiftUI wrapper for the island strip (follows the live engine). `only`: just that clone
+/// (the approval card shows the one that asked).
 struct CloneStrip: NSViewRepresentable {
+    var only: String? = nil
     func makeNSView(context: Context) -> CloneStripView { CloneStripView(frame: .zero) }
     func updateNSView(_ v: CloneStripView, context: Context) {
         let e = CharacterEngine.shared
         v.externallyPaused = e.screensAsleep || AppSettings.shared.prefs.islandHidden
-        v.apply(e.frame.helpers, pack: e.pack, stills: e.frame.stills)
+        let h = e.frame.helpers
+        v.apply(only.map { k in h.filter { $0.key == k } } ?? h, pack: e.pack, stills: e.frame.stills)
+    }
+}
+
+extension PermissionRequest {
+    /// The shadow clone of the subagent that asked, if it is showing.
+    @MainActor var clone: CharacterClone? {
+        guard !agentID.isEmpty else { return nil }
+        let key = (session.isEmpty ? "-" : session) + "/" + agentID
+        return CharacterEngine.shared.frame.helpers.first { $0.key == key }
     }
 }
 
@@ -612,6 +668,7 @@ final class CloneHeadsView: NSView {
     static let maxHeads = 4
     static let size: CGFloat = 15
     static let step: CGFloat = 10
+    static let height: CGFloat = 18
     private var heads: [String: CALayer] = [:]
     private var phases: [String: CharacterClone.Phase] = [:]
     private var running = false
@@ -655,7 +712,7 @@ final class CloneHeadsView: NSView {
             let isNew = heads[c.key] == nil
             let h = heads[c.key] ?? makeHead(face, pack: pack, ordinal: c.ordinal)
             if isNew { heads[c.key] = h; host.insertSublayer(h, at: 0) }
-            let p = CGPoint(x: 2 + Self.size / 2 + CGFloat(i) * Self.step, y: bounds.height / 2)
+            let p = CGPoint(x: 2 + Self.size / 2 + CGFloat(i) * Self.step, y: Self.height / 2)
             if !isNew && !stills && h.position != p {
                 let a = CABasicAnimation(keyPath: "position"); a.fromValue = NSValue(point: h.presentation()?.position ?? h.position); a.duration = 0.4
                 a.timingFunction = CAMediaTimingFunction(controlPoints: 0.3, 1.25, 0.5, 1); h.add(a, forKey: "move")
@@ -858,8 +915,8 @@ final class CloneRunners {
         r.tintMask.contentsGravity = .resizeAspect
         r.tint.mask = r.tintMask
         r.body.addSublayer(r.art); r.body.addSublayer(r.tint)
-        r.label.string = NSAttributedString(string: c.label, attributes: [.font: NSFont.systemFont(ofSize: 8.5, weight: .semibold),
-                                                                           .foregroundColor: NSColor(white: 1, alpha: 0.62)])
+        r.label.string = CloneLook.fitted(c.label, width: 78, attributes: [.font: NSFont.systemFont(ofSize: 8.5, weight: .semibold),
+                                                                            .foregroundColor: NSColor(white: 1, alpha: 0.62)])
         r.label.alignmentMode = .right
         r.label.contentsScale = scale
         r.label.frame = CGRect(x: -82, y: 10, width: 80, height: 12)
