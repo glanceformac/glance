@@ -248,7 +248,7 @@ final class IslandWindowController {
         }
     }
 
-    /// Show / Hide Glance from the menu bar (the app keeps running).
+    /// Show / Hide the island from the menu bar (the app keeps running).
     func setHidden(_ hidden: Bool) {
         if hidden {
             model.setExpanded(false)

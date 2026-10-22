@@ -87,9 +87,12 @@ private struct LiveStateButtons: View {
     private let engine = CharacterEngine.shared
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if AppSettings.shared.prefs.islandHidden {
+                Text("The island is hidden. These buttons show it again.").font(.caption).foregroundStyle(.orange)
+            }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
                 ForEach(CharacterState.allCases) { s in
-                    Button(s.title) { engine.preview(s) }
+                    Button(s.title) { showIsland(); engine.preview(s) }
                         .buttonStyle(.bordered)
                         .frame(maxWidth: .infinity)
                 }
@@ -99,12 +102,17 @@ private struct LiveStateButtons: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if engine.override != nil { Button("Back to live") { engine.preview(nil) } }
-                Button(engine.clonesDemo ? "Playing Shadow Clones" : "Play Shadow Clones") { engine.playClonesDemo() }
+                Button(engine.clonesDemo ? "Playing Shadow Clones" : "Play Shadow Clones") { showIsland(); engine.playClonesDemo() }
                     .disabled(engine.clonesDemo || !engine.prefs.clones)
                     .help("Four made-up agents appear on the notch, one needs you, then they finish and leave.")
             }
         }
         .disabled(!engine.active)
+    }
+
+    /// Trying a state on a hidden island would show nothing, so bring the island back first.
+    private func showIsland() {
+        if AppSettings.shared.prefs.islandHidden { AppSettings.shared.prefs.islandHidden = false }
     }
 }
 
