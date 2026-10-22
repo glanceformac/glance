@@ -702,7 +702,8 @@ extension PermissionRequest {
 /// Up to four overlapping round faces, one per clone, ringed white (working), orange and
 /// bobbing (needs you) or green (done). Faces pop in and shrink away.
 final class CloneHeadsView: NSView {
-    static let maxHeads = 4
+    /// Three beside a hardware notch (little room right of the camera), else four.
+    @MainActor static var maxHeads: Int { HardwareNotch.present ? 3 : 4 }
     static let size: CGFloat = 15
     static let step: CGFloat = 10
     static let height: CGFloat = 18
