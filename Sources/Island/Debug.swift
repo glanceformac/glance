@@ -193,6 +193,7 @@ enum DebugChannel {
                 try? FileManager.default.createDirectory(at: snapshotDir, withIntermediateDirectories: true)
                 try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: snapshotDir.appendingPathComponent("film-\(pack.id.replacingOccurrences(of: ":", with: "-"))-\(sc).png"))
             }
+        case "clones-demo": CharacterEngine.shared.playClonesDemo()   // the Settings "Play Shadow Clones" demo
         case "char-tb-film": // the Touch Bar strip with made-up clones, 6 s in real time (blocks while filming)
             let pack = CharacterEngine.shared.pack ?? MochiArt.pack
             if let img = CharacterStripView.film(pack: pack) {
