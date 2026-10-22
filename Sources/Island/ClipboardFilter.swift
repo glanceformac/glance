@@ -10,6 +10,7 @@ import SwiftUI
 ///   transient, auto-generated, plus the 1Password and macOS password markers);
 /// - anything copied while an app in Settings › Clipboard › "Ignore copies from these apps" is in
 ///   front (password managers by default);
+/// - files copied in Finder, when "File copies from Finder" is on;
 /// - text written by a dictation app from that list: dictation apps work in the background, so
 ///   the app in front is the one you dictate into. Instead Glance checks the microphone: if a
 ///   listed app was recording within the last few seconds, new text is its transcript;
@@ -37,6 +38,12 @@ enum ClipboardFilter {
         "com.proton.pass.electron", "me.proton.pass.electron",
     ]
 
+    /// Terminal apps, added or removed together by the "Terminals" switch in Settings.
+    nonisolated static let terminals: [String] = [
+        "com.apple.Terminal", "com.mitchellh.ghostty", "com.googlecode.iterm2", "dev.warp.Warp-Stable",
+        "net.kovidgoyal.kitty", "org.alacritty", "com.github.wez.wezterm",
+    ]
+
     /// Names for list entries that are not installed on this Mac.
     nonisolated static let knownNames: [String: String] = [
         "com.1password.1password": "1Password", "com.agilebits.onepassword7": "1Password 7",
@@ -46,6 +53,9 @@ enum ClipboardFilter {
         "in.sinew.Enpass-Desktop": "Enpass", "org.keepassxc.keepassxc": "KeePassXC", "com.keepassxc.keepassxc": "KeePassXC",
         "com.callpod.keepermac.lite": "Keeper", "com.nordpass.macos.NordPass": "NordPass",
         "com.proton.pass.electron": "Proton Pass", "me.proton.pass.electron": "Proton Pass",
+        "com.apple.Terminal": "Terminal", "com.mitchellh.ghostty": "Ghostty", "com.googlecode.iterm2": "iTerm",
+        "dev.warp.Warp-Stable": "Warp", "net.kovidgoyal.kitty": "kitty", "org.alacritty": "Alacritty",
+        "com.github.wez.wezterm": "WezTerm",
     ]
 
     /// Dictation tools are recognised by name (their bundle ids vary between versions).
@@ -59,10 +69,11 @@ enum ClipboardFilter {
     // MARK: Decisions
 
     /// True if this pasteboard change should not be recorded at all.
-    static func shouldIgnore(types: [NSPasteboard.PasteboardType], frontBundle: String?, isText: Bool) -> Bool {
+    static func shouldIgnore(types: [NSPasteboard.PasteboardType], frontBundle: String?, isText: Bool, isFile: Bool = false) -> Bool {
         if types.contains(where: { privateTypes.contains($0) }) { return true }
         let list = Set(AppSettings.shared.prefs.clipboardIgnoredApps)
         if let id = frontBundle, list.contains(id) || alwaysIgnored.contains(id) { return true }
+        if isFile, frontBundle == "com.apple.finder", AppSettings.shared.prefs.clipboardIgnoreFinderFiles { return true }
         if isText, MicHistory.shared.recentlyRecorded(by: list, within: dictationWindow) { return true }
         return false
     }
@@ -198,6 +209,8 @@ struct ClipboardIgnoreSettings: View {
         let notInstalled = list.filter { ClipboardFilter.app(for: $0) == nil }
         let suggestions = dictationApps.filter { !list.contains($0.id) && !settings.prefs.clipboardDismissedSuggestions.contains($0.id) }
         VStack(alignment: .leading, spacing: 6) {
+            Toggle("Ignore copies from terminals (Terminal, Ghostty, iTerm, Warp and others)", isOn: terminalsIgnored)
+            Toggle("Ignore file copies from Finder", isOn: $settings.prefs.clipboardIgnoreFinderFiles)
             Text("Ignore copies from these apps")
             ForEach(installed) { app in
                 HStack {
@@ -239,6 +252,15 @@ struct ClipboardIgnoreSettings: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .task { dictationApps = await ClipboardFilter.installedDictationApps() }
+    }
+
+    /// On when any terminal is in the list; switching it adds or removes all of them together.
+    private var terminalsIgnored: Binding<Bool> {
+        Binding(get: { ClipboardFilter.terminals.contains(where: list.contains) }, set: { on in
+            var l = settings.prefs.clipboardIgnoredApps.filter { !ClipboardFilter.terminals.contains($0) }
+            if on { l += ClipboardFilter.terminals }
+            settings.prefs.clipboardIgnoredApps = l
+        })
     }
 
     private func addApp() {

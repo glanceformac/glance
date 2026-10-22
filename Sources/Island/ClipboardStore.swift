@@ -126,7 +126,8 @@ final class ClipboardStore {
         let front = NSWorkspace.shared.frontmostApplication
         // Private markers, ignored apps (password managers) and dictation apps' text: see ClipboardFilter.
         let isText = !types.contains(.fileURL) && types.contains(.string)
-        if ClipboardFilter.shouldIgnore(types: types, frontBundle: front?.bundleIdentifier, isText: isText) { return }
+        if ClipboardFilter.shouldIgnore(types: types, frontBundle: front?.bundleIdentifier, isText: isText,
+                                        isFile: types.contains(.fileURL)) { return }
         guard var item = capture(pb, source: front?.localizedName) else { return }
         item.sourceBundle = front?.bundleIdentifier
         insert(item)
