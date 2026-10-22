@@ -46,7 +46,8 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
-        .background(Color.orange.opacity(0.12))
+        .background(Color.orange.opacity(0.14))
+        .background(Color(nsColor: .windowBackgroundColor))   // solid, so the text reads in light and dark
     }
 
     @ViewBuilder private var pageContent: some View {
