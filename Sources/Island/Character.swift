@@ -88,6 +88,8 @@ struct CharacterFrame: Equatable {
     var stills = false
     /// Running Claude Code subagents (shadow clones).
     var clones = 0
+    /// The shadow clones themselves (running, waiting for you, or done and about to go).
+    var helpers: [CharacterClone] = []
 }
 
 // MARK: - Settings
@@ -129,6 +131,12 @@ struct CharacterMedia {
     var videoOnBlack = true
 }
 
+/// How a pack's shadow clones arrive and leave: a puff of smoke (the default), fox-fire, or a
+/// dusting of rice flour.
+enum CloneEffect: String, CaseIterable {
+    case smoke, foxfire, flour
+}
+
 final class CharacterPack: Identifiable {
     let id: String
     let name: String
@@ -139,12 +147,14 @@ final class CharacterPack: Identifiable {
     let media: [String: CharacterMedia]
     /// Small chest-up stills for the Touch Bar (optional; falls back to `media`).
     let compact: [String: CharacterMedia.Source]
+    /// Entrance and exit of this pack's shadow clones.
+    let cloneEffect: CloneEffect
     private var cache: [String: CGImage] = [:]
 
     init(id: String, name: String, summary: String, credit: String, folder: URL?,
-         media: [String: CharacterMedia], compact: [String: CharacterMedia.Source]) {
+         media: [String: CharacterMedia], compact: [String: CharacterMedia.Source], cloneEffect: CloneEffect = .smoke) {
         self.id = id; self.name = name; self.summary = summary; self.credit = credit
-        self.folder = folder; self.media = media; self.compact = compact
+        self.folder = folder; self.media = media; self.compact = compact; self.cloneEffect = cloneEffect
     }
 
     /// Ships with Glance (Mochi drawn in code, Kitsune and Pocket ninja in the app's Resources).
@@ -201,7 +211,11 @@ final class CharacterPack: Identifiable {
 ///                   "idleAlt": { "still": "art/snack.png", "height": 104 },
 ///                   "music": { "still": "art/run.png", "height": 76, "bottom": 16,
 ///                              "video": "video/run.mp4", "videoHeight": 116, "videoOnBlack": true }, ... },
-///       "touchBar": { "idle": "art/small-idle.png", ... } }
+///       "touchBar": { "idle": "art/small-idle.png", ... },
+///       "clones": { "effect": "smoke" } }
+///
+/// "clones" is optional: how the pack's shadow clones (one per running Claude Code subagent)
+/// appear and leave. "effect" is "smoke" (the default), "foxfire" or "flour".
 ///
 /// Every path must stay inside the pack folder. Unknown keys are ignored.
 enum CharacterManifest {
@@ -253,7 +267,8 @@ enum CharacterManifest {
         return CharacterPack(id: (builtIn ? "builtin:" : "pack:") + folder.lastPathComponent, name: name,
                              summary: String((obj["description"] as? String ?? "").prefix(200)),
                              credit: String((obj["credit"] as? String ?? "").prefix(200)),
-                             folder: folder, media: media, compact: compact)
+                             folder: folder, media: media, compact: compact,
+                             cloneEffect: ((obj["clones"] as? [String: Any])?["effect"] as? String).flatMap(CloneEffect.init(rawValue:)) ?? .smoke)
     }
 }
 
@@ -431,6 +446,11 @@ final class CharacterEngine {
         return s
     }
 
+    /// Clones ("session/agent_id") whose subagent is waiting on a permission request.
+    private func askingClones() -> Set<String> {
+        Set(IslandModel.shared.permissions.compactMap { p in p.agentID.isEmpty ? nil : (p.session.isEmpty ? "-" : p.session) + "/" + p.agentID })
+    }
+
     static let videoApps: Set<String> = ["com.apple.QuickTimePlayerX", "com.apple.TV", "org.videolan.vlc", "com.colliderli.iina",
                                          "io.mpv", "com.netflix.Netflix", "com.firecore.infuse", "com.apple.Photos"]
     static let browsers: Set<String> = ["com.apple.Safari", "com.google.Chrome", "company.thebrowser.Browser", "org.mozilla.firefox",
@@ -489,6 +509,7 @@ final class CharacterEngine {
         var f = frame
         f.stills = stills
         f.clones = prefs.clones ? min(clones.count, 99) : 0
+        f.helpers = prefs.clones ? clones.clones(asking: askingClones()) : []
         if next != f.state || force {
             f.state = next
             f.serial &+= 1
@@ -521,49 +542,115 @@ final class CharacterEngine {
 
 /// Running Claude Code subagents, one entry per agent per session (the shadow clones). Fed by the
 /// hook events (https://code.claude.com/docs/en/hooks): SubagentStart and SubagentStop carry
-/// `agent_id`; tool events from inside a subagent carry it too and count as a sign of life.
+/// `agent_id` and `agent_type`; tool events from inside a subagent carry them too and count as a
+/// sign of life. A clone that finished stays for a moment as "done" before it goes.
 struct CloneTracker {
-    struct Agent: Equatable { var session: String; var started: Date; var seen: Date }
+    struct Agent: Equatable {
+        var session: String
+        var id: String
+        /// agent_type ("Explore", "general-purpose", "my-plugin:reviewer", ...), may be empty.
+        var type: String
+        var started: Date
+        var seen: Date
+        /// Order of arrival (stable tint and position).
+        var ordinal: Int
+    }
     /// No word from an agent for this long: its SubagentStop was missed (Claude Code quit, hook
     /// timed out), so the clone goes. Long Read/Grep runs send no hooked events, hence the margin.
     static let quietExpiry: TimeInterval = 20 * 60
+    /// A finished clone shows "done" (a hop) this long before it poofs.
+    static let doneHold: TimeInterval = 1.3
     private(set) var agents: [String: Agent] = [:]
+    /// Finished clones still showing "done", until the given time.
+    private(set) var leaving: [String: (agent: Agent, until: Date)] = [:]
+    private var arrivals = 0
     var count: Int { agents.count }
 
     mutating func handle(event: String, session: String, msg: [String: Any], now: Date) {
         let id = (msg["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let type = msg["agent_type"] as? String ?? ""
         switch event {
         case "SubagentStart":
             // Also fires when a subagent is resumed: same id, same clone.
-            let key = session + "/" + (id ?? UUID().uuidString)
-            agents[key] = Agent(session: session, started: agents[key]?.started ?? now, seen: now)
+            let aid = id ?? UUID().uuidString
+            let key = session + "/" + aid
+            if let a = agents[key] {
+                agents[key]?.seen = now
+                if a.type.isEmpty { agents[key]?.type = type }
+            } else {
+                let back = leaving.removeValue(forKey: key)?.agent
+                arrivals += 1
+                agents[key] = Agent(session: session, id: aid, type: type.isEmpty ? back?.type ?? "" : type,
+                                    started: back?.started ?? now, seen: now, ordinal: back?.ordinal ?? arrivals)
+            }
         case "SubagentStop":
             // Claude Code's own internal agents (prompt suggestions, /btw) stop without a start:
             // an unknown id is ignored. Without any id, the oldest clone of the session goes.
-            if let id { agents[session + "/" + id] = nil }
-            else if let k = agents.filter({ $0.value.session == session }).min(by: { $0.value.started < $1.value.started })?.key { agents[k] = nil }
+            if let id { finish(session + "/" + id, now: now) }
+            else if let k = agents.filter({ $0.value.session == session }).min(by: { $0.value.started < $1.value.started })?.key { finish(k, now: now) }
         case "Stop":
-            if let id { agents[session + "/" + id] = nil; return }
+            if let id { finish(session + "/" + id, now: now); return }
             // The main turn ended. Background subagents may still run (listed in background_tasks):
-            // keep that many of the most recently active clones, clear the rest.
+            // keep that many of the most recently active clones, the rest are done.
             let running = (msg["background_tasks"] as? [[String: Any]] ?? []).filter {
                 $0["type"] as? String == "subagent" && !["completed", "failed", "killed", "stopped", "done"].contains($0["status"] as? String ?? "")
             }.count
             let mine = agents.filter { $0.value.session == session }.sorted { $0.value.seen > $1.value.seen }
-            for (k, _) in mine.dropFirst(running) { agents[k] = nil }
+            for (k, _) in mine.dropFirst(running) { finish(k, now: now) }
         case "StopFailure", "SessionEnd":
+            // Gone without a celebration.
             agents = agents.filter { $0.value.session != session }
+            leaving = leaving.filter { $0.value.agent.session != session }
         case "Notification":
             // idle_prompt only fires once no background agent is still running.
-            if msg["notification_type"] as? String == "idle_prompt" { agents = agents.filter { $0.value.session != session } }
+            if msg["notification_type"] as? String == "idle_prompt" {
+                for k in agents.keys where agents[k]?.session == session { finish(k, now: now) }
+            }
         default:
-            if let id, agents[session + "/" + id] != nil { agents[session + "/" + id]?.seen = now }
+            if let id, agents[session + "/" + id] != nil {
+                agents[session + "/" + id]?.seen = now
+                if !type.isEmpty, agents[session + "/" + id]?.type.isEmpty == true { agents[session + "/" + id]?.type = type }
+            }
         }
+    }
+
+    private mutating func finish(_ key: String, now: Date) {
+        guard let a = agents.removeValue(forKey: key) else { return }
+        leaving[key] = (a, now.addingTimeInterval(Self.doneHold))
     }
 
     mutating func expire(now: Date) {
         agents = agents.filter { now.timeIntervalSince($0.value.seen) < Self.quietExpiry }
+        leaving = leaving.filter { $0.value.until > now }
     }
+
+    /// The clones to draw, oldest first. `asking`: keys ("session/agent_id") with a pending
+    /// permission request.
+    func clones(asking: Set<String>) -> [CharacterClone] {
+        let live = agents.map { k, a in CharacterClone(key: k, label: Self.label(a.type), phase: asking.contains(k) ? .needsYou : .working, ordinal: a.ordinal) }
+        let done = leaving.map { k, l in CharacterClone(key: k, label: Self.label(l.agent.type), phase: .done, ordinal: l.agent.ordinal) }
+        return (live + done).sorted { $0.ordinal < $1.ordinal }
+    }
+
+    /// A short label from agent_type: "my-plugin:code-reviewer" -> "Code reviewer",
+    /// "general-purpose" or nothing -> "Helper".
+    static func label(_ type: String) -> String {
+        var t = type.split(separator: ":").last.map(String.init) ?? ""
+        t = t.replacingOccurrences(of: "-", with: " ").replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespaces)
+        if t.isEmpty || t.lowercased() == "general purpose" { return "Helper" }
+        if t.count > 14 { t = String(t.prefix(13)).trimmingCharacters(in: .whitespaces) + "\u{2026}" }
+        return t.prefix(1).uppercased() + t.dropFirst()
+    }
+}
+
+/// One shadow clone as the rigs draw it.
+struct CharacterClone: Equatable, Identifiable {
+    enum Phase: String { case working, needsYou, done }
+    var key: String
+    var label: String
+    var phase: Phase
+    var ordinal: Int
+    var id: String { key }
 }
 
 // MARK: - Self test (`Glance --character-selftest`: prints results and exits, shows nothing)
@@ -614,6 +701,28 @@ enum CharacterSelfTest {
         check("clones: SessionEnd clears only that session", ct.count == 1 && ct.agents["s2/d2"] != nil)
         ct.handle(event: "Notification", session: "s2", msg: ["notification_type": "idle_prompt"], now: t0)
         check("clones: idle prompt clears the session", ct.count == 0)
+        // Per-clone labels and phases.
+        ct = CloneTracker()
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "e1", "agent_type": "Explore"], now: t0)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "e2", "agent_type": "my-plugin:code-reviewer"], now: t0)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "e3", "agent_type": "general-purpose"], now: t0)
+        var cl = ct.clones(asking: ["s1/e2"])
+        check("clones: labelled from agent_type, oldest first", cl.map(\.label) == ["Explore", "Code reviewer", "Helper"])
+        check("clones: the agent with a pending permission waves", cl.map(\.phase) == [.working, .needsYou, .working])
+        check("clones: no type -> Helper, long types shortened", CloneTracker.label("") == "Helper" && CloneTracker.label("a-very-long-agent-name").count <= 14)
+        ct.handle(event: "SubagentStop", session: "s1", msg: ["agent_id": "e1", "agent_type": "Explore"], now: t0)
+        cl = ct.clones(asking: [])
+        check("clones: a finished clone shows done before it goes", ct.count == 2 && cl.first?.phase == .done && cl.first?.label == "Explore")
+        ct.expire(now: t0.addingTimeInterval(CloneTracker.doneHold + 0.1))
+        check("clones: then it leaves", ct.clones(asking: []).count == 2)
+        ct.handle(event: "SubagentStop", session: "s1", msg: ["agent_id": "e2"], now: t0)
+        ct.handle(event: "SubagentStart", session: "s1", msg: ["agent_id": "e2"], now: t0)
+        cl = ct.clones(asking: [])
+        check("clones: resumed while done keeps its place and type", cl.map(\.label) == ["Code reviewer", "Helper"] && cl.allSatisfy { $0.phase == .working })
+        ct.handle(event: "Stop", session: "s1", msg: ["background_tasks": []], now: t0)
+        check("clones: main Stop sends the rest off as done", ct.count == 0 && ct.clones(asking: []).allSatisfy { $0.phase == .done })
+        ct.handle(event: "SessionEnd", session: "s1", msg: [:], now: t0)
+        check("clones: SessionEnd clears done clones too", ct.clones(asking: []).isEmpty)
         // Manifest parsing: path escapes and missing files are refused, idle is required.
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("glance-pack-test-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tmp.appendingPathComponent("art"), withIntermediateDirectories: true)
@@ -627,6 +736,14 @@ enum CharacterSelfTest {
         check("path outside the pack refused", p?.media["music"] == nil)
         check("missing file refused", p?.media["sleeping"] == nil)
         check("meeting falls back to idle art", p?.media(for: .meeting, alt: false)?.still == p?.media["idle"]?.still)
+        check("clone effect defaults to smoke", p?.cloneEffect == .smoke)
+        let fx = #"{"states":{"idle":{"still":"art/a.png"}},"clones":{"effect":"foxfire"}}"#
+        check("clone effect from the manifest", CharacterManifest.parse(Data(fx.utf8), folder: tmp)?.cloneEffect == .foxfire)
+        let bad = #"{"states":{"idle":{"still":"art/a.png"}},"clones":{"effect":"lasers"}}"#
+        check("unknown clone effect -> smoke", CharacterManifest.parse(Data(bad.utf8), folder: tmp)?.cloneEffect == .smoke)
+        check("built-in clone effects", MochiArt.pack.cloneEffect == .flour
+              && CharacterLibrary.shared.pack("builtin:kitsune").map { $0.cloneEffect == .foxfire } != false
+              && CharacterLibrary.shared.pack("builtin:pocket-ninja").map { $0.cloneEffect == .smoke } != false)
         check("no idle -> no pack", CharacterManifest.parse(Data(#"{"states":{"music":{"still":"art/a.png"}}}"#.utf8), folder: tmp) == nil)
         check("drawn Mochi renders", MochiArt.pack.media.values.allSatisfy { m in m.still.flatMap { MochiArt.pack.image($0) } != nil })
         try? FileManager.default.removeItem(at: tmp)

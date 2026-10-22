@@ -10,6 +10,9 @@ final class PermissionRequest: Identifiable {
     let summary: String      // full text shown to the user, never truncated
     let detail: String?      // optional secondary text (e.g. Bash description)
     let received = Date()
+    /// Claude Code session, and the subagent that asked ("" for the main agent): its shadow clone waves.
+    var session = ""
+    var agentID = ""
     fileprivate weak var connection: ClaudeConnection?
     private var answered = false
     /// True once answered, handed back to the terminal (timed out) or abandoned.
@@ -297,6 +300,7 @@ extension ClaudeServer {
             let input = msg["tool_input"] as? [String: Any] ?? [:]
             let (summary, detail) = Self.describe(tool: tool, input: input)
             let req = PermissionRequest(toolName: tool, project: project, summary: summary, detail: detail, connection: c)
+            req.session = session; req.agentID = msg["agent_id"] as? String ?? "" // MARK: wip/character
             pending[ObjectIdentifier(c)] = req.id
             if tool == "Bash" { LongCommands.shared.permissionStarted(request: req.id, session: session, command: summary) } // MARK: feat/claude-dev
             IslandModel.shared.addPermission(req)
