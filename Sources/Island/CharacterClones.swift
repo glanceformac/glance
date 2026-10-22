@@ -1029,7 +1029,9 @@ final class CloneRunners {
     private func freeze(_ r: Runner) {
         r.running = false
         var x = r.root.presentation()?.position.x ?? r.root.position.x
-        x = min(max(x, 24), width - 24)   // clear of the lane's faded edges
+        // Clear of the lane's 16 pt faded edges: the label ends up to 97 pt left of the centre,
+        // the body 18 pt right of it.
+        x = min(max(x, 113), width - 34)
         CATransaction.begin(); CATransaction.setDisableActions(true)
         r.root.position = CGPoint(x: x, y: 15)
         CATransaction.commit()
