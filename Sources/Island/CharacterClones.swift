@@ -126,7 +126,9 @@ enum CloneAnim {
             g.bounds = CGRect(x: 0, y: 0, width: z, height: z)
             g.colors = [NSColor.white.cgColor, NSColor(red: 0.91, green: 0.92, blue: 0.95, alpha: 1).cgColor, NSColor(red: 0.91, green: 0.92, blue: 0.95, alpha: 0).cgColor]
             g.locations = [0, 0.62, 1]
-            g.startPoint = CGPoint(x: 0.42, y: 0.38)
+            // Centred: an off-centre radial gradient runs past the edges and shows a square.
+            g.startPoint = CGPoint(x: 0.5, y: 0.5)
+            g.cornerRadius = z / 2
         case .foxfire:
             g.bounds = CGRect(x: 0, y: 0, width: z * 0.62, height: z)
             g.colors = [NSColor.white.cgColor, NSColor(red: 0.75, green: 0.89, blue: 1, alpha: 1).cgColor,
@@ -140,6 +142,7 @@ enum CloneAnim {
                         NSColor(red: 1, green: 0.87, blue: 0.9, alpha: 0).cgColor]
             g.locations = [0, 0.66, 1]
             g.startPoint = CGPoint(x: 0.5, y: 0.5)
+            g.cornerRadius = z * 0.225
         }
         g.endPoint = CGPoint(x: 1, y: 1)
         return g
