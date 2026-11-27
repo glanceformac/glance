@@ -64,7 +64,10 @@ final class IslandWindowController {
         panel.orderFrontRegardless()
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.position() }
+            MainActor.assumeIsolated {
+                self?.model.screenRevision += 1
+                self?.position()
+            }
         }
         let ws = NSWorkspace.shared.notificationCenter
         // Another app taking focus: re-check the pointer straight away.
@@ -95,6 +98,7 @@ final class IslandWindowController {
         if let c = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown], handler: { [weak self] e in
             guard let self else { return e }
             if !self.model.expanded, e.window === self.panel {
+                if self.peekRect()?.contains(NSEvent.mouseLocation) == true { return e }
                 // Clicks on the in-pill video controls are theirs; elsewhere the pill opens the panel.
                 if self.model.hoverControls {
                     let x = NSEvent.mouseLocation.x - self.islandRect().midX
@@ -107,7 +111,7 @@ final class IslandWindowController {
             return e
         }) { monitors.append(c) }
 
-        withObservationTracking({ _ = model.size; _ = model.page; _ = model.expanded }, onChange: { [weak self] in
+        withObservationTracking({ _ = model.size; _ = model.page; _ = model.expanded; _ = model.detachedPeek }, onChange: { [weak self] in
             Task { @MainActor in self?.stateChanged() }
         })
     }
@@ -202,8 +206,14 @@ final class IslandWindowController {
         return NSRect(x: f.midX - s.width / 2, y: f.maxY - s.height - inset, width: s.width, height: s.height)
     }
 
+    private func peekRect() -> NSRect? {
+        guard let peek = model.detachedPeek else { return nil }
+        return NotchLayout.announcementRect(screen: screen.frame, size: model.detachedPeekSize(peek),
+                                            top: model.detachedPeekTop)
+    }
+
     private func stateChanged() {
-        withObservationTracking({ _ = model.size; _ = model.page; _ = model.expanded }, onChange: { [weak self] in
+        withObservationTracking({ _ = model.size; _ = model.page; _ = model.expanded; _ = model.detachedPeek }, onChange: { [weak self] in
             Task { @MainActor in self?.stateChanged() }
         })
         updateKeyFocus()
@@ -263,7 +273,8 @@ final class IslandWindowController {
     private func pointerMoved() {
         guard !AppSettings.shared.prefs.islandHidden else { return }
         let p = NSEvent.mouseLocation
-        let inside = islandRect().insetBy(dx: -2, dy: -2).contains(p)
+        let insideIsland = islandRect().insetBy(dx: -2, dy: -2).contains(p)
+        let inside = insideIsland || peekRect()?.contains(p) == true
         if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
         // After ⌃⌥V, normal hover behaviour resumes once the pointer has visited the island.
         if model.openedByHotkey, inside { model.openedByHotkey = false }
@@ -284,7 +295,7 @@ final class IslandWindowController {
             }
         } else {
             let hot = islandRect(model.closedSize).insetBy(dx: -4, dy: -2).contains(p) ||
-                (model.peek != nil && inside)
+                (model.peek != nil && model.detachedPeek == nil && insideIsland)
             let lift = hot && model.peek == nil
             if model.hoveringClosed != lift { model.hoveringClosed = lift }
             // A Chrome video is playing: hovering shows controls inside the pill; a click opens the panel.

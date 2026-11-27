@@ -70,6 +70,7 @@ final class IslandModel {
     var editing = false
     var page: ExpandedPage = .widgets
     var peek: Peek?
+    var screenRevision = 0
     @ObservationIgnored private var peekQueue: [Peek] = []
     @ObservationIgnored private var peekTask: Task<Void, Never>?
 
@@ -108,7 +109,7 @@ final class IslandModel {
 
     var size: CGSize {
         if currentPermission != nil { return IslandMetrics.permission }
-        // Celebrations and peeks play inside the closed pill: same shape, same size.
+        // Celebrations stay in the closed island; detached announcements do not resize it.
         if celebration != nil { return closedSize }
         if expanded {
             // MARK: feat/controls: panel width / max height settings
@@ -125,8 +126,31 @@ final class IslandModel {
     }
 
     /// The pill: 220 x 32, or 240 x 32 while it shows a live score / focus score.
-    /// On a notch Mac it never shrinks below the notch plus room for content (see HardwareNotch).
-    var closedSize: CGSize { HardwareNotch.closedSize(fitting: IslandGeometry.scaledClosed(baseClosedSize)) } // feat/controls: idle pill size %
+    var closedSize: CGSize {
+        _ = screenRevision
+        return NotchLayout.idle(base: baseClosedSize,
+                               hardware: IslandGeometry.style == .notch ? HardwareNotch.size : nil,
+                               percent: AppSettings.shared.prefs.idlePillScale)
+    }
+
+    var detachedPeek: Peek? {
+        _ = screenRevision
+        return HardwareNotch.present && !expanded && currentPermission == nil && celebration == nil ? peek : nil
+    }
+
+    var detachedPeekTop: CGFloat {
+        NotchLayout.announcementTop(hardwareHeight: HardwareNotch.size?.height ?? 0,
+                                   islandBottom: IslandGeometry.topInset + closedSize.height)
+    }
+
+    func detachedPeekSize(_ peek: Peek) -> CGSize {
+        peek.prominent ? IslandMetrics.peekProminent : IslandMetrics.peek
+    }
+
+    var compactNotch: Bool {
+        guard IslandGeometry.style == .notch, let hardware = HardwareNotch.size else { return false }
+        return closedSize.width - hardware.width < 80
+    }
 
     private var baseClosedSize: CGSize {
         let wide = FootballService.shared.pillMatch != nil
@@ -134,6 +158,7 @@ final class IslandModel {
         let base = wide ? CGSize(width: 240, height: 32) : IslandMetrics.closed
         // MARK: wip/character: Shadow Clones' faces and count need more room right of a notch.
         let clones = CharacterEngine.shared.clonesShowing && CharacterEngine.shared.showing ? 66 : 0
+        guard IslandGeometry.style == .notch else { return base }
         return HardwareNotch.closedSize(fitting: base, extra: max(wide ? 20 : 0, CGFloat(clones)))
     }
 

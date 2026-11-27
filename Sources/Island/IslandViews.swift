@@ -104,7 +104,7 @@ struct IslandRootView: View {
         if let r = model.currentPermission { return .permission(r.id) }
         if let c = model.celebration { return .celebration(c.id) }
         if model.expanded { return .expanded }
-        if let p = model.peek { return .peek(p.id) }
+        if let p = model.peek, model.detachedPeek == nil { return .peek(p.id) }
         return .closed
     }
 
@@ -167,7 +167,7 @@ struct IslandRootView: View {
                         .allowsHitTesting(false)
                 }
                 content(theme: theme, ear: ear)
-                if !open { GuardDots() } // MARK: feat/system-media (camera / mic indicator)
+                if !open && !model.compactNotch { GuardDots() } // MARK: feat/system-media (camera / mic indicator)
             }
             .frame(width: size.width, height: size.height, alignment: .top)
             .clipShape(shape)
@@ -179,7 +179,7 @@ struct IslandRootView: View {
         }
         .modifier(ShakeEffect(progress: model.pillShake))
         .saturation(model.glowFlash == .deny && !open ? 0.2 : 1)
-        .scaleEffect(model.hoveringClosed && polish && !open ? 1.045 : 1, anchor: .top)
+        .scaleEffect(model.hoveringClosed && polish && !open && !model.compactNotch ? 1.045 : 1, anchor: .top)
         .animation(.spring(response: 0.3, dampingFraction: 0.65), value: model.hoveringClosed)
         .padding(.top, inset) // feat/controls: Pill height offset
         // MARK: wip/cinema-h: shape and offset changes morph with the island's spring (one
@@ -187,6 +187,18 @@ struct IslandRootView: View {
         .animation(IslandModel.openSpring, value: settings.prefs.islandStyle)
         .animation(IslandModel.openSpring, value: inset)
         .frame(width: IslandMetrics.window.width, height: IslandMetrics.window.height, alignment: .top)
+        .overlay(alignment: .top) {
+            if let peek = model.detachedPeek {
+                let size = model.detachedPeekSize(peek)
+                PeekContent(peek: peek, theme: theme)
+                    .frame(width: size.width, height: size.height)
+                    .background(theme.pill, in: Capsule())
+                    .overlay(Capsule().strokeBorder(theme.secondary.opacity(0.32), lineWidth: 0.5).allowsHitTesting(false))
+                    .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
+                    .offset(y: model.detachedPeekTop)
+                    .transition(.opacity)
+            }
+        }
     }
 
     @ViewBuilder
@@ -194,9 +206,11 @@ struct IslandRootView: View {
         ZStack(alignment: .top) {
             switch face {
             case .closed:
-                ClosedContent(theme: theme)
-                    .frame(width: model.size.width, height: model.size.height)
-                    .transition(.opacity.animation(.easeOut(duration: 0.15)))
+                if !model.compactNotch {
+                    ClosedContent(theme: theme)
+                        .frame(width: model.size.width, height: model.size.height)
+                        .transition(.opacity.animation(.easeOut(duration: 0.15)))
+                }
             case .peek:
                 if let p = model.peek {
                     PeekContent(peek: p, theme: theme)

@@ -105,8 +105,9 @@ enum IslandGeometry {
     static func outline(open: Bool, size: CGSize) -> IslandOutline {
         switch style {
         case .notch:
-            // Unchanged from the original island: ears 7 / 12, bottom radius 14 / 30.
-            return IslandOutline(ear: open ? 12 : 7, radius: open ? 30 : 14, top: 0, pill: 0)
+            let outsideNotch = (size.width - (HardwareNotch.size?.width ?? 0)) / 2
+            let ear = open ? 12 : max(0, min(7, outsideNotch))
+            return IslandOutline(ear: ear, radius: open ? 30 : 14, top: 0, pill: 0)
         case .pill:
             let r = open ? 30 : size.height / 2
             return IslandOutline(ear: 0, radius: r, top: r, pill: 1)
